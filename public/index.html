@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Zurich 3D</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="map"></div>
+
+  <div id="loading">
+    <div class="spinner"></div>
+    <div id="loading-text">Loading timetable…</div>
+  </div>
+
+  <header class="panel" id="top">
+    <div class="brand">
+      <span class="logo">Z</span>
+      <div>
+        <h1>Zurich 3D</h1>
+        <div class="sub" id="sub">Zurich public transport in 3D</div>
+        <div id="rt-status" class="rt off">Connecting to real-time…</div>
+      </div>
+    </div>
+    <div id="counters"></div>
+  </header>
+
+  <aside class="panel" id="layers">
+    <h2>Layers</h2>
+    <label><input type="checkbox" id="l-buildings" checked /> 3D buildings</label>
+    <label><input type="checkbox" id="l-network" checked /> Route network</label>
+    <label><input type="checkbox" id="l-stops" checked /> Stops</label>
+    <label><input type="checkbox" id="l-labels" checked /> Line numbers</label>
+    <label><input type="checkbox" id="l-trails" /> Light trails</label>
+    <h2>Map</h2>
+    <div class="seg" id="theme">
+      <button data-theme="day" class="on">Day</button>
+      <button data-theme="night">Night</button>
+    </div>
+  </aside>
+
+  <aside class="panel hidden" id="info">
+    <button class="close" id="info-close" aria-label="Close">×</button>
+    <div id="info-body"></div>
+  </aside>
+
+  <footer class="panel" id="timebar">
+    <button id="play" title="Play / pause">❚❚</button>
+    <div class="clock">
+      <div id="clock">--:--:--</div>
+      <div id="date" class="sub"></div>
+    </div>
+    <input type="range" id="slider" min="0" max="86399" step="1" />
+    <div class="seg" id="speeds">
+      <button data-speed="1" class="on">×1</button>
+      <button data-speed="10">×10</button>
+      <button data-speed="60">×60</button>
+      <button data-speed="300">×300</button>
+    </div>
+    <button id="live" class="live on" title="Jump to now">● LIVE</button>
+  </footer>
+
+  <div id="credits">
+    Timetable: <a href="https://opentransportdata.swiss" target="_blank" rel="noopener">opentransportdata.swiss</a> (GTFS + GTFS-RT) ·
+    Paths &amp; map: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>, <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>
+  </div>
+
+  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/deck.gl@9.4.1/dist.min.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -37,8 +37,8 @@ No npm packages and no build step. Node.js and a browser are all it needs.
 **Requirements:** [Node.js](https://nodejs.org) 20 or newer, about 1 GB of free disk space and 4 GB of RAM for the data build. `unzip` must be on the PATH (included with Git for Windows, macOS and most Linux distributions); otherwise Windows' built-in `tar.exe` is used.
 
 ```sh
-git clone <this repo> zurich-3d
-cd zurich-3d
+git clone https://github.com/atahanca/zurich-live-in-3d.git
+cd zurich-live-in-3d
 npm run setup   # downloads ~300 MB of timetable + map data and builds it (a few minutes)
 npm start       # open http://localhost:8080
 ```

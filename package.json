@@ -1,0 +1,15 @@
+{
+  "name": "zurich-3d",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Live 3D view of Zurich public transport",
+  "type": "module",
+  "scripts": {
+    "fetch:gtfs": "node scripts/fetch-gtfs.js",
+    "fetch:osm": "node scripts/fetch-osm.js",
+    "build:data": "node --max-old-space-size=4096 scripts/build-timetable.js",
+    "setup": "node scripts/fetch-gtfs.js && node scripts/fetch-osm.js && node --max-old-space-size=4096 scripts/build-timetable.js",
+    "start": "node server.js"
+  },
+  "engines": { "node": ">=20" }
+}
