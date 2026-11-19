@@ -133,9 +133,12 @@ The Swiss GTFS has **no route shapes**, so paths are reconstructed from OpenStre
 - If a far stop lies outside the downloaded area (e.g. Zürich HB → Basel), the path follows the tracks to the edge of the network and continues straight from there.
 - About 98% of segments follow real track or road. The rest fall back to a straight line.
 
-### In the browser (`public/app.js`, `public/vehicles.js`)
+### In the browser (`public/app.js`, `public/vehicles.js`, `public/buildings.js`, `public/atmosphere.js`)
 
-- **Base map:** [MapLibre GL](https://maplibre.org) with [OpenFreeMap](https://openfreemap.org) vector tiles and 3D building extrusions.
+- **Base map:** [MapLibre GL](https://maplibre.org) with [OpenFreeMap](https://openfreemap.org) vector tiles. At night it switches to a dark style with its own palette, a sodium glow along streets and rows of street lamps.
+- **Buildings:** deck.gl draws the 3D buildings from the same vector tiles (a small built-in decoder reads only the building layer). A shader extension paints lit windows on the walls at night. Windows are about 2.8 m × 3.2 m storeys, so they stay to scale at every zoom. The share of lit windows follows the time: they come on at dusk, most go off after midnight, and some come back before work.
+- **Sun and sky:** sun altitude and azimuth come from the simulated time. They drive the light direction and colour (warm when the sun is low), the sky and fog colours, and the gradual change from day to night.
+- **Weather:** `/api/weather` serves Open-Meteo data (MeteoSwiss ICON-CH models) cached on the server for 15 minutes. Rain and snow are drawn as falling particles; clouds grey the sky and soften the sunlight. Live mode uses current conditions; when you scrub the timeline, the hourly values for that time are used (yesterday to two days ahead).
 - **Vehicles:** [deck.gl](https://deck.gl) instanced meshes. Each vehicle is a set of **articulated sections** placed separately along its path, so a 200 m train or a 43 m tram follows the curves.
 - **Movement:** positions are interpolated between stop times with gentle acceleration and braking.
 - **Real-time:** delays from `/api/realtime` shift each trip's times. A delay carries forward until the next reported stop, and travel time between stops never drops below 60% of the scheduled time, so vehicles don't jump.
@@ -151,6 +154,7 @@ The Swiss GTFS has **no route shapes**, so paths are reconstructed from OpenStre
 zurich-3d/
 ├── server.js              Static file server (gzip) + /api/realtime endpoint
 ├── realtime.js            GTFS-RT polling, protobuf decoder, trip filtering
+├── weather.js             Open-Meteo fetch and cache for /api/weather
 ├── scripts/
 │   ├── config.js          Area (BBOX), mode categories, tram line colours, GTFS URL
 │   ├── fetch-gtfs.js      Download Swiss GTFS
@@ -164,6 +168,13 @@ zurich-3d/
 │   ├── style.css          UI styles (light/dark)
 │   ├── app.js             Map, simulation loop, UI, real-time integration
 │   ├── vehicles.js        Vehicle models, meshes, liveries
+│   ├── buildings.js       3D buildings, vector-tile decoder, lit-window shader
+│   ├── atmosphere.js      Sun position, sky colours, weather lookup, rain/snow
+│   ├── privacy.html       Privacy policy (fill in placeholders)
+│   ├── imprint.html       Imprint / Impressum (fill in placeholders)
+│   ├── legal.css          Styles for the two legal pages
+│   ├── vendor/            Self-hosted MapLibre GL JS and deck.gl (with licences)
+│   ├── fonts/             Self-hosted Inter font (OFL)
 │   └── data/              Generated: network.json, timetable-YYYYMMDD.json, index.json
 ├── data/raw/              Downloaded: gtfs.zip, osm-*.json, osm-tiles/ (git-ignored)
 ├── .env.example           Template for the API key
@@ -176,7 +187,8 @@ zurich-3d/
 
 | What | Where |
 | --- | --- |
-| API key, port | `.env` (`OTD_API_KEY`, `PORT`) |
+| API key, port, interface | `.env` (`OTD_API_KEY`, `PORT`, `HOST`) |
+| HTTPS redirect + HSTS | `.env`: `FORCE_HTTPS=1` and, behind a reverse proxy, `TRUST_PROXY=1` |
 | Area covered | `BBOX` in `scripts/config.js` (`[west, south, east, north]`). After changing it, run `npm run fetch:osm -- --force` and `npm run build:data` |
 | Tram line colours (badges) | `TRAM_COLORS` in `scripts/config.js` |
 | Vehicle models, sizes, liveries | `MODELS` and `LIVERIES` in `public/vehicles.js` |
@@ -214,11 +226,13 @@ Outline:
 4. Add the cron jobs from [Keeping data up to date](#keeping-data-up-to-date).
 5. Point your domain's DNS **A record** to the server's IP address.
 
+Security built into `server.js`: Content-Security-Policy and other security headers on every response, optional HTTPS redirect with HSTS (`FORCE_HTTPS`), GET/HEAD only, no hidden files or path traversal, request timeouts. Fonts and libraries are self-hosted, so visitors' browsers only contact OpenFreeMap (map tiles) and, for the satellite view, swisstopo.
+
 Before going public, check:
 
 - The credits line (opentransportdata.swiss, OpenStreetMap, OpenFreeMap) is visible. The terms require citing opentransportdata.swiss as the source.
 - The site doesn't look official: no operator logos or names like "VBZ Live".
-- An imprint with your name, and a privacy note: server logs contain IP addresses. Keep them short-lived and mention where the server is hosted.
+- Fill in the placeholders in `public/imprint.html` and `public/privacy.html` (name, address, email, hosting provider, log retention). Keep server logs short-lived to match the privacy policy.
 - Your API key stays in `.env` on the server.
 
 ## Troubleshooting
@@ -244,6 +258,7 @@ Before going public, check:
 | Base map tiles | [OpenFreeMap](https://openfreemap.org) | Free; attribution |
 | Map rendering | [MapLibre GL JS](https://maplibre.org) | BSD-3-Clause |
 | 3D layers | [deck.gl](https://deck.gl) | MIT |
+| Weather | [Open-Meteo.com](https://open-meteo.com) (MeteoSwiss ICON-CH) | CC BY 4.0; the free API is for non-commercial use (commercial use needs an [API plan](https://open-meteo.com/en/pricing)) |
 
 Vehicle models and liveries are simplified representations made for this project. They contain no operator logos or trademarks.
 
@@ -256,6 +271,6 @@ Vehicle models and liveries are simplified representations made for this project
 - [ ] Disruption messages (GTFS Service Alerts)
 - [ ] Optional colouring of vehicles by delay
 - [ ] Terrain (Uetliberg, Zürichberg) and detailed 3D buildings (Stadt Zürich / swisstopo)
-- [ ] Sun position lighting, weather
+- [x] Sun position lighting, weather (rain/snow), lit windows at night
 - [ ] Stop search, departure boards
 - [ ] Deployment scripts (systemd, Caddy, cron)
