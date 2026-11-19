@@ -961,10 +961,26 @@ function toggleSearch(on) {
 }
 
 // ---------------------------------------------------------------- UI: wiring
+/**
+ * deck.gl draws into MapLibre's canvas, so both must use the same pixel ratio, otherwise the 3D
+ * layers are drawn at the wrong scale and drift away from the map underneath. In interleaved mode
+ * deck.gl takes its ratio from the drawing-buffer size it last recorded, which it never refreshes
+ * when MapLibre changes resolution, so it is updated here from the real canvas size.
+ */
+function syncDeckPixelRatio() {
+  const cc = overlay?._deck?.device?.canvasContext;
+  if (!cc || !map) return;
+  const canvas = map.getCanvas();
+  const [w, h] = cc.getDrawingBufferSize();
+  if (w !== canvas.width || h !== canvas.height) cc.setDrawingBufferSize(canvas.width, canvas.height);
+  map.triggerRepaint();
+}
+
 function setQuality(q) {
   settings.quality = q;
   document.querySelectorAll('#quality button').forEach((b) => b.classList.toggle('on', b.dataset.q === q));
   map?.setPixelRatio?.(QUALITY[q].ratio());
+  syncDeckPixelRatio();
   saveSettings();
 }
 
@@ -1221,8 +1237,10 @@ async function main() {
   renderModes();
   precip = new Precipitation($('precip'));
   initBuildings().then(() => { state.dirty = true; }).catch((e) => console.warn('buildings:', e.message));
+  map.on('resize', syncDeckPixelRatio);
   map.once('load', () => {
     $('loading').remove();
+    syncDeckPixelRatio();
     pollWeather();
     setInterval(pollWeather, 10 * 60_000);
     requestAnimationFrame(tick);
