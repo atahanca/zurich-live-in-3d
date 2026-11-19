@@ -68,13 +68,21 @@ class WindowsExtension extends deck.LayerExtension {
       modules: [windowsModule],
       inject: {
         'vs:#decl': 'out vec3 vWin;',
-        // wall coordinate system in metres: x along the wall, y height above ground, z = 1 on walls
+        // Wall coordinate system in metres: x along the wall, y height above ground, z = 1 on walls.
+        // Built from the wall's own lng/lat corners (pos/nextPos of the side shader), not from
+        // geometry.position: at high zoom deck.gl measures that relative to the view centre, so
+        // windows would slide along the walls whenever the map is panned or zoomed.
         'vs:#main-end': /* glsl */ `
-          vec3 wm = geometry.position.xyz / project.commonUnitsPerMeter;
-          vec3 wn = geometry.normal;
-          float isWall = 1.0 - step(0.5, abs(wn.z));
-          vec2 tng = normalize(vec2(-wn.y, wn.x) + vec2(1e-6));
-          vWin = vec3(dot(wm.xy, tng), wm.z, isWall);
+          #ifdef IS_SIDE_VERTEX
+            const vec2 WIN_REF = vec2(8.54, 47.37);           // fixed reference near Zurich
+            const vec2 WIN_M = vec2(75398.0, 110540.0);       // metres per degree lng/lat there
+            vec2 wa = (pos.xy - WIN_REF) * WIN_M;
+            vec2 wb = (nextPos.xy - WIN_REF) * WIN_M;
+            vec2 wt = normalize(wb - wa + vec2(1e-6));
+            vWin = vec3(dot(mix(wa, wb, positions.x), wt), elevations * positions.y, 1.0);
+          #else
+            vWin = vec3(0.0);                                 // roofs: no windows
+          #endif
         `,
         'fs:#decl': FS_DECL,
         'fs:DECKGL_FILTER_COLOR': 'color = applyWindows(color);',
