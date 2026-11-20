@@ -12,7 +12,6 @@ h2 { font-size: 17px; margin: 30px 0 8px; color: var(--fg); }
 p, li { color: #c3cad3; }
 a { color: var(--accent); }
 .updated { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
-.todo { background: rgba(240, 178, 50, 0.16); color: var(--accent); border-radius: 4px; padding: 0 4px; font-weight: 600; }
 address { font-style: normal; }
 table { border-collapse: collapse; width: 100%; font-size: 14px; }
 td, th { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }

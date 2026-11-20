@@ -171,8 +171,8 @@ zurich-3d/
 │   ├── vehicles.js        Vehicle models, meshes, liveries
 │   ├── buildings.js       3D buildings, vector-tile decoder, lit-window shader
 │   ├── atmosphere.js      Sun position, sky colours, weather lookup, rain/snow
-│   ├── privacy.html       Privacy policy (fill in placeholders)
-│   ├── imprint.html       Imprint / Impressum (fill in placeholders)
+│   ├── privacy.html       Privacy policy
+│   ├── imprint.html       Imprint / Impressum
 │   ├── legal.css          Styles for the two legal pages
 │   ├── vendor/            Self-hosted MapLibre GL JS and deck.gl (with licences)
 │   ├── fonts/             Self-hosted Inter font (OFL)
@@ -233,7 +233,7 @@ Before going public, check:
 
 - The credits line (opentransportdata.swiss, OpenStreetMap, OpenFreeMap) is visible. The terms require citing opentransportdata.swiss as the source.
 - The site doesn't look official: no operator logos or names like "VBZ Live".
-- Fill in the placeholders in `public/imprint.html` and `public/privacy.html` (name, address, email, hosting provider, log retention). Keep server logs short-lived to match the privacy policy.
+- If you run your own copy, put your own name, contact address and hosting provider in `public/imprint.html` and `public/privacy.html`.
 - Your API key stays in `.env` on the server.
 
 ## Troubleshooting
