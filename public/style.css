@@ -50,7 +50,8 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .brand .accent { color: var(--accent); letter-spacing: 0.25em; }
 .brand.big { font-size: 34px; background: none; border: 0; box-shadow: none; }
 .toolbar { display: flex; gap: 6px; }
-#topleft { display: grid; grid-template-columns: auto auto; justify-content: start; align-items: center; column-gap: 8px; }
+#topleft { display: grid; grid-template-columns: auto 1fr; justify-content: start; align-items: center; column-gap: 8px; }
+#topleft > .wx { justify-self: start; }  /* the wide search box must not stretch the logo or the chip */
 #topleft .toolbar, #topleft .search { grid-column: 1 / -1; }
 .wx { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px 0 10px; font-size: 12px; color: var(--muted); white-space: nowrap; }
 .wx svg { width: 18px; height: 18px; fill: #c9d3e0; }
@@ -79,7 +80,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 
 /* ---------- left panel ---------- */
 .panel {
-  position: absolute; z-index: 4; left: 14px; top: 116px; width: 288px; max-height: calc(100vh - 116px - 150px);
+  position: absolute; z-index: 4; left: 14px; top: var(--top-space, 116px); width: 288px; max-height: var(--avail, calc(100vh - 266px));
   overflow-y: auto; padding: 14px 16px 10px; scrollbar-width: thin; scrollbar-color: #333b47 transparent;
 }
 .panel.closed { display: none; }
@@ -139,7 +140,7 @@ input[type="range"] { accent-color: var(--accent); }
 
 /* ---------- right side panels ---------- */
 .side {
-  position: absolute; z-index: 4; right: 14px; top: 112px; width: 340px; max-height: calc(100vh - 112px - 150px);
+  position: absolute; z-index: 4; right: 14px; top: 112px; width: 340px; max-height: calc(100vh - 112px - var(--tb-space, 150px));
   display: flex; flex-direction: column; overflow: hidden;
 }
 .side-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 6px; }
@@ -259,18 +260,37 @@ input[type="range"] { accent-color: var(--accent); }
   .tb-speeds { display: none; }
 }
 @media (max-width: 760px) {
+  /* row 1: logo + weather, row 2: tools + live status, map in between, time bar at the bottom */
+  #topleft { top: calc(10px + env(safe-area-inset-top)); left: calc(10px + env(safe-area-inset-left)); }
   .brand { font-size: 15px; padding: 8px 12px; gap: 10px; }
   .tool span:not(.count) { display: none; }
   .tool { width: 36px; padding: 0; justify-content: center; }
-  #stats { top: 14px; padding: 8px 10px; font-size: 9.5px; letter-spacing: 0.1em; }
-  #stats-lines { display: none; }
-  .panel { top: 110px; left: 10px; right: 10px; width: auto; max-height: calc(100vh - 110px - 170px); }
-  .side { left: 10px; right: 10px; width: auto; top: auto; bottom: 150px; max-height: 45vh; }
-  .search { width: calc(100vw - 28px); }
-  #timebar { grid-template-columns: auto 1fr auto; row-gap: 8px; bottom: 22px; }
+  #stats {
+    top: var(--tools-top, 58px); right: calc(10px + env(safe-area-inset-right)); height: 36px; max-width: calc(100vw - 196px);
+    display: flex; align-items: center; padding: 0 10px; font-size: 9.5px; letter-spacing: 0.08em; line-height: 1.2;
+  }
+  #stats-lines, #stats-trips, .rt-more { display: none; }
+  .panel { left: 10px; right: 10px; width: auto; }
+  .side { left: 10px; right: 10px; width: auto; top: auto; bottom: var(--tb-space, 170px); max-height: min(45vh, var(--avail, 45vh)); }
+  .search { width: calc(100vw - 20px); }
+  #timebar {
+    width: calc(100vw - 20px); bottom: calc(34px + env(safe-area-inset-bottom)); padding: 10px 12px 6px;
+    grid-template-columns: auto 1fr auto; column-gap: 12px; row-gap: 6px;
+  }
+  .tb-controls { gap: 6px; }
+  .round { width: 38px; height: 38px; }
+  .tb-clock, .tb-count, .tb-timeline { min-width: 0; }
   .tb-timeline { grid-column: 1 / -1; grid-row: 2; }
   .tb-time { font-size: 28px; }
   .tb-count .big { font-size: 24px; }
+  .tb-count .lbl { letter-spacing: 0.16em; }
   .maplibregl-ctrl-bottom-right { display: none; }
-  #credits { white-space: normal; width: calc(100vw - 20px); text-align: center; }
+  #credits {
+    bottom: calc(3px + env(safe-area-inset-bottom)); width: calc(100vw - 20px); white-space: normal; text-align: center;
+    font-size: 9.5px; line-height: 1.35;
+  }
+}
+@media (max-width: 370px) {
+  .wx span { display: none; }           /* very narrow phones: weather icon + temperature only */
+  .brand { letter-spacing: 0.32em; }
 }

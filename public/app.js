@@ -109,8 +109,9 @@ function sunTimes(ymd) {
 const defaults = {
   quality: 'std', basemap: 'default', opacity: 100, cycle: true, theme: 'day', buildingOpacity: 85,
   show: { network: true, stops: true, labels: true, delays: true, trails: false, buildings: true, pt: true, weather: true },
-  hidden: [], panelOpen: true,
+  hidden: [], panelOpen: window.innerWidth > 760, // on phones the map comes first
 };
+const isPhone = () => window.matchMedia('(max-width: 760px)').matches;
 function loadSettings() {
   try {
     const s = JSON.parse(localStorage.getItem('z3d.settings') || '{}');
@@ -735,12 +736,12 @@ function renderRealtimeStatus() {
   let text, cls;
   if (rt.status === 'ok' && ago !== null && ago < 180) {
     const n = state.trips.filter((t) => t.rt).length;
-    text = `● LIVE DATA · ${fmtNum(n)} TRIPS · ${ago}S AGO`; cls = 'ok';
+    text = `● LIVE DATA<span class="rt-more"> · ${fmtNum(n)} TRIPS</span> · ${ago}S AGO`; cls = 'ok';
   } else if (rt.status === 'no-key') { text = 'SCHEDULED TIMETABLE'; cls = 'off'; }
   else if (rt.status === 'error') { text = 'REAL-TIME ERROR'; cls = 'err'; el.title = rt.error || ''; }
   else if (rt.status === 'unreachable') { text = 'REAL-TIME UNAVAILABLE'; cls = 'err'; }
   else { text = 'CONNECTING…'; cls = 'off'; }
-  el.textContent = text;
+  el.innerHTML = text; // only fixed words and numbers
   el.className = 'rt ' + cls;
   $('pt-live').classList.toggle('off', cls !== 'ok');
 }
@@ -823,6 +824,7 @@ function renderAlerts() {
 }
 
 function showAlerts(on) {
+  if (on && isPhone()) setPanel(false, false);
   state.alertsOpen = on;
   $('btn-alerts').classList.toggle('on', on);
   $('alerts').hidden = !on || state.selected >= 0;
@@ -875,6 +877,7 @@ function renderInfo() {
 }
 
 function showInfo(on) {
+  if (on && isPhone()) setPanel(false, false);
   $('info').classList.toggle('hidden', !on);
   $('alerts').hidden = on || !state.alertsOpen;
 }
@@ -959,7 +962,16 @@ function pickSearch(idx) {
   map.flyTo({ center: s.coord, zoom: 17, duration: 1600 });
   toggleSearch(false);
 }
-function toggleSearch(on) {
+let searchHidPanel = false;
+function setPanel(open, save = true) {
+  $('panel').classList.toggle('closed', !open);
+  $('btn-panel').classList.toggle('on', open);
+  if (save) { settings.panelOpen = open; saveSettings(); }
+}
+function toggleSearch(on, { restore = true } = {}) {
+  // the search box sits where the layer panel starts: hide the panel meanwhile, bring it back after
+  if (on && !$('panel').classList.contains('closed')) { searchHidPanel = true; setPanel(false, false); }
+  else if (!on && searchHidPanel) { searchHidPanel = false; if (restore) setPanel(true, false); }
   $('search').classList.toggle('hidden', !on);
   $('btn-search').classList.toggle('on', on);
   if (on) { $('search-input').value = ''; $('search-results').innerHTML = ''; $('search-input').focus(); }
@@ -1006,13 +1018,28 @@ function set2D(on) {
 function wireUi() {
   // toolbar
   $('btn-panel').onclick = () => {
-    settings.panelOpen = !settings.panelOpen;
-    $('panel').classList.toggle('closed', !settings.panelOpen);
-    $('btn-panel').classList.toggle('on', settings.panelOpen);
-    saveSettings();
+    const open = $('panel').classList.contains('closed');
+    if (open) {
+      toggleSearch(false, { restore: false });
+      if (isPhone()) { showAlerts(false); if (state.selected >= 0) select(-1); } // no room for two panels
+    }
+    setPanel(open);
   };
-  $('panel').classList.toggle('closed', !settings.panelOpen);
-  $('btn-panel').classList.toggle('on', settings.panelOpen);
+  setPanel(settings.panelOpen, false);
+  // Panels fill the space between the toolbar and the time bar. Measured, because the time bar's
+  // height varies and 100vh on phones includes the area behind the browser's own toolbars.
+  const layout = () => {
+    const root = document.documentElement;
+    const tools = document.querySelector('#topleft .toolbar').getBoundingClientRect();
+    const tbTop = $('timebar').getBoundingClientRect().top;
+    root.style.setProperty('--tools-top', `${Math.round(tools.top)}px`);
+    root.style.setProperty('--top-space', `${Math.round(tools.bottom + 10)}px`);
+    root.style.setProperty('--tb-space', `${Math.round(root.clientHeight - tbTop + 10)}px`);
+    root.style.setProperty('--avail', `${Math.max(120, Math.round(tbTop - 10 - tools.bottom - 10))}px`);
+  };
+  layout();
+  window.addEventListener('resize', layout);
+  new ResizeObserver(layout).observe($('timebar'));
   $('btn-search').onclick = () => toggleSearch($('search').classList.contains('hidden'));
   $('btn-home').onclick = () => map.flyTo({ ...START_VIEW, pitch: $('l-2d').checked ? 0 : START_VIEW.pitch, bearing: $('l-2d').checked ? 0 : START_VIEW.bearing, duration: 1800 });
   $('btn-alerts').onclick = () => { if (state.selected >= 0) select(-1); showAlerts(!state.alertsOpen || state.selected >= 0); };
