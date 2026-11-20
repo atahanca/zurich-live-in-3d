@@ -9,7 +9,8 @@
     "fetch:osm": "node scripts/fetch-osm.js",
     "build:data": "node --max-old-space-size=4096 scripts/build-timetable.js",
     "setup": "node scripts/fetch-gtfs.js && node scripts/fetch-osm.js && node --max-old-space-size=4096 scripts/build-timetable.js",
-    "start": "node server.js"
+    "start": "node server.js",
+     "build:hostinger": "npm run fetch:gtfs && npm run build:data"
   },
   "engines": { "node": ">=20" }
 }
