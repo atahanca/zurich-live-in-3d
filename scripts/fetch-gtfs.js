@@ -5,7 +5,9 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { gtfsUrls, GTFS_ZIP, RAW_DIR } from './config.js';
 
-const MAX_AGE_DAYS = 7; // the feed is republished regularly with timetable changes
+// opentransportdata.swiss publishes a new export on Mondays and Thursdays, and GTFS-RT trip IDs
+// follow the newest one, so refresh after 3 days at the latest
+const MAX_AGE_DAYS = 3;
 
 if (fs.existsSync(GTFS_ZIP) && !process.argv.includes('--force')) {
   const ageDays = (Date.now() - fs.statSync(GTFS_ZIP).mtimeMs) / 864e5;

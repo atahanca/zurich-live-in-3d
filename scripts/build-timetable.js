@@ -1,16 +1,17 @@
 // Builds the frontend data from the Swiss GTFS feed + OSM network.
 //
-//   node scripts/build-timetable.js [--date YYYYMMDD] [--days N]
+//   node scripts/build-timetable.js [--date YYYYMMDD] [--days N]   (default: today + 6 days)
 //
 // Output (public/data/):
 //   network.json            routes, stops and path geometry between consecutive stops
 //   timetable-YYYYMMDD.json all trips running in the area on that service day
 //   index.json              list of available days
 import fs from 'node:fs';
+import zlib from 'node:zlib';
 import path from 'node:path';
 import { readGtfs, timeToSec } from './lib/gtfs.js';
 import { Graph, simplify } from './lib/graph.js';
-import { BBOX, GTFS_ZIP, OUT_DIR, RAW_DIR, inBbox, categoryOf, TRAM_COLORS, CATEGORY_COLORS } from './config.js';
+import { BBOX, GTFS_ZIP, OSM_DIR, OUT_DIR, RAW_DIR, inBbox, categoryOf, TRAM_COLORS, CATEGORY_COLORS } from './config.js';
 
 // ---------- args ----------
 const arg = (name, def) => {
@@ -22,7 +23,7 @@ const zurichToday = () => {
   return p.replaceAll('-', '');
 };
 const startDate = arg('date', zurichToday());
-const nDays = +arg('days', 2);
+const nDays = +arg('days', 7);
 
 const ymdToDate = (s) => new Date(Date.UTC(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8)));
 const dateToYmd = (d) => d.toISOString().slice(0, 10).replaceAll('-', '');
@@ -128,10 +129,14 @@ finishTrip();
 lap(`${kept.length} trips touch the area`);
 
 // ---------- network: graphs for snapping ----------
+// a fresh download in data/raw/ wins; otherwise the committed snapshot in data/osm/
 const loadOsm = (name) => {
   const p = path.join(RAW_DIR, `osm-${name}.json`);
-  if (!fs.existsSync(p)) { console.warn(`  (no ${p}; ${name} paths will be straight lines — run npm run fetch:osm)`); return null; }
-  return JSON.parse(fs.readFileSync(p, 'utf8')).elements;
+  if (fs.existsSync(p)) return JSON.parse(fs.readFileSync(p, 'utf8')).elements;
+  const gz = path.join(OSM_DIR, `osm-${name}.json.gz`);
+  if (fs.existsSync(gz)) return JSON.parse(zlib.gunzipSync(fs.readFileSync(gz)).toString('utf8')).elements;
+  console.warn(`  (no OSM ${name} network; paths will be straight lines — run npm run fetch:osm)`);
+  return null;
 };
 const railEls = loadOsm('rail');
 const roadEls = loadOsm('road');
@@ -241,9 +246,16 @@ process.stdout.write('\n');
 lap(`segments: ${segStats.snapped} snapped to OSM, ${segStats.straight} straight`);
 
 // ---------- write ----------
+// The server may be serving these files while a rebuild runs: write each to a temp file and rename,
+// so a browser never gets half a file. network.json first, index.json last.
 fs.mkdirSync(OUT_DIR, { recursive: true });
+const writeAtomic = (file, text) => {
+  const p = path.join(OUT_DIR, file);
+  fs.writeFileSync(p + '.part', text);
+  fs.renameSync(p + '.part', p);
+};
 const network = { generated: new Date().toISOString(), bbox: BBOX, routes: routeOut, stops: stopOut, segments: segOut };
-fs.writeFileSync(path.join(OUT_DIR, 'network.json'), JSON.stringify(network));
+writeAtomic('network.json', JSON.stringify(network));
 lap(`network.json: ${routeOut.length} lines, ${stopOut.length} stops, ${segOut.length} segments`);
 
 const written = [];
@@ -263,7 +275,8 @@ for (let slot = 1; slot < days.length; slot++) {
     return [t.r, t.h, t.n, t.s, t.g, d, t.id, t.shift ? 1 : 0, t.seq];
   });
   const file = `timetable-${days[slot]}.json`;
-  fs.writeFileSync(path.join(OUT_DIR, file), JSON.stringify({ date: days[slot], fields: ['route', 'headsign', 'number', 'stops', 'segments', 'times', 'tripId', 'prevDay', 'stopSequence'], trips: out }));
+  // `generated` ties the file to its network.json: stop/segment indices only match that version
+  writeAtomic(file, JSON.stringify({ date: days[slot], generated: network.generated, fields: ['route', 'headsign', 'number', 'stops', 'segments', 'times', 'tripId', 'prevDay', 'stopSequence'], trips: out }));
   written.push(days[slot]);
   lap(`${file}: ${out.length} trips`);
 }
@@ -272,5 +285,5 @@ for (const f of fs.readdirSync(OUT_DIR)) {
   const m = /^timetable-(\d{8})\.json$/.exec(f);
   if (m && !written.includes(m[1])) fs.unlinkSync(path.join(OUT_DIR, f));
 }
-fs.writeFileSync(path.join(OUT_DIR, 'index.json'), JSON.stringify({ days: written, generated: network.generated }));
+writeAtomic('index.json', JSON.stringify({ days: written, generated: network.generated }));
 lap('done');

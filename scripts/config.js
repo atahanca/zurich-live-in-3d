@@ -5,6 +5,9 @@ export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 export const RAW_DIR = path.join(ROOT, 'data', 'raw');
 export const OUT_DIR = path.join(ROOT, 'public', 'data');
 export const GTFS_ZIP = path.join(RAW_DIR, 'gtfs.zip');
+// Compressed copy of the OSM network that is committed to git, so a build machine doesn't have
+// to query the (often busy) Overpass servers. `npm run fetch:osm` refreshes it.
+export const OSM_DIR = path.join(ROOT, 'data', 'osm');
 // The Swiss timetable year starts mid-December, so from ~13 Dec the next year's dataset applies.
 export function gtfsUrls(now = new Date()) {
   const y = new Date(now.getTime() + 19 * 864e5).getUTCFullYear();

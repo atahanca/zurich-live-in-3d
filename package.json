@@ -7,10 +7,10 @@
   "scripts": {
     "fetch:gtfs": "node scripts/fetch-gtfs.js",
     "fetch:osm": "node scripts/fetch-osm.js",
-    "build:data": "node --max-old-space-size=4096 scripts/build-timetable.js",
-    "setup": "node scripts/fetch-gtfs.js && node scripts/fetch-osm.js && node --max-old-space-size=4096 scripts/build-timetable.js",
-    "start": "node server.js",
-     "build:hostinger": "npm run fetch:gtfs && npm run build:data"
+    "build:data": "node scripts/fetch-gtfs.js && node --max-old-space-size=4096 scripts/build-timetable.js",
+    "build:hostinger": "npm run build:data",
+    "setup": "npm run build:data",
+    "start": "node server.js"
   },
   "engines": { "node": ">=20" }
 }

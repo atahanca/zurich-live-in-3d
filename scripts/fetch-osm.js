@@ -3,8 +3,9 @@
 // Tiles are cached in data/raw/osm-tiles/ so an interrupted run resumes where it stopped.
 //   node scripts/fetch-osm.js [--force]
 import fs from 'node:fs';
+import zlib from 'node:zlib';
 import path from 'node:path';
-import { BBOX, RAW_DIR } from './config.js';
+import { BBOX, OSM_DIR, RAW_DIR } from './config.js';
 
 const ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
@@ -78,7 +79,7 @@ function tiles(b, n) {
 
 async function fetchLayer(name, tileList) {
   const out = path.join(RAW_DIR, `osm-${name}.json`);
-  if (fs.existsSync(out) && !FORCE) { console.log(`  ${name}: cached (use --force to refetch)`); return; }
+  if (fs.existsSync(out) && !FORCE) { console.log(`  ${name}: cached (use --force to refetch)`); snapshot(name, fs.readFileSync(out)); return; }
   const seen = new Set();
   const elements = [];
   for (const t of tileList) {
@@ -90,6 +91,13 @@ async function fetchLayer(name, tileList) {
   const text = JSON.stringify({ elements });
   fs.writeFileSync(out, text);
   console.log(`  ${name}: ${elements.length} elements, ${(text.length / 1e6).toFixed(1)} MB`);
+  snapshot(name, text);
+}
+
+/** Update the committed copy in data/osm/ that builds fall back to when data/raw/ is empty. */
+function snapshot(name, text) {
+  fs.mkdirSync(OSM_DIR, { recursive: true });
+  fs.writeFileSync(path.join(OSM_DIR, `osm-${name}.json.gz`), zlib.gzipSync(text, { level: 9 }));
 }
 
 fs.mkdirSync(TILE_DIR, { recursive: true });

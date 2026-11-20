@@ -8,6 +8,7 @@
 //   FORCE_HTTPS=1      redirect plain-HTTP requests to https:// and send HSTS
 //   TRUST_PROXY=1      trust X-Forwarded-Proto/-Host from the reverse proxy (needed with FORCE_HTTPS behind a proxy)
 //   OTD_API_KEY=...    opentransportdata.swiss GTFS-RT key (optional)
+//   DATA_REFRESH=0     don't rebuild the timetable nightly from inside the server (default: on)
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -15,6 +16,7 @@ import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { startRealtime, loadEnv } from './realtime.js';
 import { startWeather } from './weather.js';
+import { startDataRefresh } from './datarefresh.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, 'public');
@@ -23,6 +25,7 @@ const PORT = +(process.argv[2] || env.PORT || 8080);
 const HOST = env.HOST || '0.0.0.0';
 const FORCE_HTTPS = /^(1|true|yes)$/i.test(env.FORCE_HTTPS || '');
 const TRUST_PROXY = /^(1|true|yes)$/i.test(env.TRUST_PROXY || '');
+if (!/^(0|false|no)$/i.test(env.DATA_REFRESH || '')) startDataRefresh({ root: HERE, dataDir: path.join(ROOT, 'data') });
 const weather = startWeather();
 const realtime = startRealtime({ dataDir: path.join(ROOT, 'data'), apiKey: env.OTD_API_KEY });
 

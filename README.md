@@ -34,20 +34,19 @@ No npm packages and no build step. Node.js and a browser are all it needs.
 
 ## Quick start
 
-**Requirements:** [Node.js](https://nodejs.org) 20 or newer, about 1 GB of free disk space and 4 GB of RAM for the data build. `unzip` must be on the PATH (included with Git for Windows, macOS and most Linux distributions); otherwise Windows' built-in `tar.exe` is used.
+**Requirements:** [Node.js](https://nodejs.org) 20 or newer, about 1 GB of free disk space and about 1.5 GB of RAM for the data build. Nothing else: the GTFS zip is read with Node's own zlib.
 
 ```sh
 git clone https://github.com/atahanca/zurich-live-in-3d.git
 cd zurich-live-in-3d
-npm run setup   # downloads ~300 MB of timetable + map data and builds it (a few minutes)
+npm run setup   # downloads the ~300 MB timetable and builds the data (about a minute)
 npm start       # open http://localhost:8080
 ```
 
-`npm run setup` runs three steps:
+`npm run setup` (the same as `npm run build:data`) runs two steps:
 
-1. Downloads the Swiss national timetable (GTFS) from opentransportdata.swiss.
-2. Downloads the rail, tram and road network for the area from OpenStreetMap.
-3. Builds compact data files for today and tomorrow into `public/data/`.
+1. Downloads the Swiss national timetable (GTFS) from opentransportdata.swiss, unless the copy in `data/raw/` is less than 3 days old.
+2. Builds compact data files for today and the next 6 days into `public/data/`, snapping vehicle paths to the rail, tram and road network from OpenStreetMap. A compressed copy of that network is in the repository (`data/osm/`), so no Overpass query is needed; `npm run fetch:osm` refreshes it.
 
 Without an API key, vehicles follow the scheduled timetable. Add a key to get live delays, as described in the next section.
 
@@ -77,11 +76,12 @@ How it behaves:
 
 | Command | What it does |
 | --- | --- |
-| `npm run setup` | Runs `fetch:gtfs`, `fetch:osm` and `build:data` in sequence |
+| `npm run setup` | Same as `build:data` |
 | `npm start` | Starts the web server on port 8080 (`node server.js 3000` or `PORT=3000` for another port) |
-| `npm run fetch:gtfs` | Downloads the GTFS timetable to `data/raw/gtfs.zip`. Skipped if the file is less than 7 days old; add `-- --force` to refresh |
-| `npm run fetch:osm` | Downloads tracks and roads from the Overpass API. Tiles are cached in `data/raw/osm-tiles/`, so an interrupted run resumes. `-- --force` refetches |
-| `npm run build:data` | Builds `public/data/` for today and tomorrow. Other days: `npm run build:data -- --date 20261224 --days 3` |
+| `npm run fetch:gtfs` | Downloads the GTFS timetable to `data/raw/gtfs.zip`. Skipped if the file is less than 3 days old; add `-- --force` to refresh |
+| `npm run fetch:osm` | Downloads tracks and roads from the Overpass API into `data/raw/` and updates the committed snapshot in `data/osm/`. Tiles are cached in `data/raw/osm-tiles/`, so an interrupted run resumes. `-- --force` refetches |
+| `npm run build:data` | Runs `fetch:gtfs`, then builds `public/data/` for today and the next 6 days. Other days: `node scripts/build-timetable.js --date 20261224 --days 3` |
+| `npm run build:hostinger` | Same as `build:data` (name used in the Hostinger build settings) |
 
 ## Using the map
 
@@ -107,7 +107,7 @@ How it behaves:
                                 │ Zurich area, per day│        ┌─────────────────────────┐
                                 └─────────┬───────────┘        │ server.js + realtime.js │
  ┌──────────────────────────────┐         │                    │ decode, keep area trips │
- │ OSM tracks + roads (Overpass)│──► routable graphs           └────────────┬────────────┘
+ │ OSM tracks + roads (data/osm)│──► routable graphs           └────────────┬────────────┘
  └──────────────────────────────┘    (tram / rail / bus)                    │ /api/realtime
                                          │  A* between                      ▼
                                          ▼  consecutive stops   ┌──────────────────────────┐
@@ -155,13 +155,14 @@ zurich-3d/
 ├── server.js              Static file server (gzip) + /api/realtime endpoint
 ├── realtime.js            GTFS-RT polling, protobuf decoder, trip filtering
 ├── weather.js             Open-Meteo fetch and cache for /api/weather
+├── datarefresh.js         Nightly timetable rebuild inside the running server
 ├── scripts/
 │   ├── config.js          Area (BBOX), mode categories, tram line colours, GTFS URL
 │   ├── fetch-gtfs.js      Download Swiss GTFS
 │   ├── fetch-osm.js       Download OSM tracks and roads (tiled, cached, resumable)
 │   ├── build-timetable.js Build public/data from GTFS + OSM
 │   └── lib/
-│       ├── gtfs.js        Streaming CSV reader for files inside the zip
+│       ├── gtfs.js        Zip entry reader (zlib) + streaming CSV reader
 │       └── graph.js       Routable graph, stop snapping, A*, simplification
 ├── public/
 │   ├── index.html         Page layout
@@ -176,6 +177,7 @@ zurich-3d/
 │   ├── vendor/            Self-hosted MapLibre GL JS and deck.gl (with licences)
 │   ├── fonts/             Self-hosted Inter font (OFL)
 │   └── data/              Generated: network.json, timetable-YYYYMMDD.json, index.json
+├── data/osm/              Committed snapshot of the OSM network (gzipped)
 ├── data/raw/              Downloaded: gtfs.zip, osm-*.json, osm-tiles/ (git-ignored)
 ├── .env.example           Template for the API key
 └── package.json
@@ -188,6 +190,7 @@ zurich-3d/
 | What | Where |
 | --- | --- |
 | API key, port, interface | `.env` (`OTD_API_KEY`, `PORT`, `HOST`) |
+| Nightly rebuild inside the server | On by default; `DATA_REFRESH=0` in `.env` turns it off (e.g. when cron does it) |
 | HTTPS redirect + HSTS | `.env`: `FORCE_HTTPS=1` and, behind a reverse proxy, `TRUST_PROXY=1` |
 | Area covered | `BBOX` in `scripts/config.js` (`[west, south, east, north]`). After changing it, run `npm run fetch:osm -- --force` and `npm run build:data` |
 | Tram line colours (badges) | `TRAM_COLORS` in `scripts/config.js` |
@@ -200,13 +203,11 @@ zurich-3d/
 
 | What | How often | Command |
 | --- | --- | --- |
-| Timetable for today and tomorrow | **Daily** (each file covers specific days) | `npm run build:data` |
+| Timetable for the coming week | **Daily** (each file covers specific days) | `npm run build:data` |
 | GTFS export | **Twice a week**: opentransportdata.swiss republishes it on Mondays and Thursdays, and GTFS-RT trip IDs follow the newest export. Also at the yearly timetable change in mid-December | `npm run fetch:gtfs -- --force && npm run build:data` |
 | OSM network | Occasionally, when tracks or roads change | `npm run fetch:osm -- --force && npm run build:data` |
 
-A server restart isn't needed after rebuilding. The server picks up new timetable files automatically, and browsers load them on the next page load.
-
-Example crontab for a server:
+**The server does this by itself.** `datarefresh.js` checks every 15 minutes and, once a day after 03:00 (or right away when there is no timetable for today), runs `fetch-gtfs.js` and `build-timetable.js` in a child process. The new GTFS export is downloaded when the old one is 3 days old. The files are replaced atomically, so visitors never see a half-written file, and an open page switches to the new data at the next day change. If a rebuild fails (e.g. not enough memory), the old files stay and it retries 3 hours later. Set `DATA_REFRESH=0` if you prefer cron:
 
 ```cron
 # daily timetable at 03:30, fresh GTFS on Monday and Thursday afternoons
@@ -220,10 +221,10 @@ The app needs a machine that runs Node.js **continuously**: for the real-time po
 
 Outline:
 
-1. Install Node.js 20+ and `unzip`. Copy the project to e.g. `/opt/zurich-3d`, create `.env`, then run `npm run setup`.
+1. Install Node.js 20+. Copy the project to e.g. `/opt/zurich-3d`, create `.env`, then run `npm run setup`.
 2. Run `node server.js` as a **systemd** service with `Restart=always`, so it starts at boot and restarts after crashes.
 3. Put **Caddy** (or nginx) in front for HTTPS: `your-domain.ch { reverse_proxy localhost:8080 }`. Caddy obtains certificates automatically.
-4. Add the cron jobs from [Keeping data up to date](#keeping-data-up-to-date).
+4. Nothing to schedule: the server rebuilds the timetable nightly (see [Keeping data up to date](#keeping-data-up-to-date)).
 5. Point your domain's DNS **A record** to the server's IP address.
 
 Security built into `server.js`: Content-Security-Policy and other security headers on every response, optional HTTPS redirect with HSTS (`FORCE_HTTPS`), GET/HEAD only, no hidden files or path traversal, request timeouts. Fonts and libraries are self-hosted, so visitors' browsers only contact OpenFreeMap (map tiles) and, for the satellite view, swisstopo.
@@ -240,7 +241,7 @@ Before going public, check:
 | Problem | Fix |
 | --- | --- |
 | *"Could not load data … Run npm run setup first"* | `public/data/` is missing. Run `npm run setup` (or `npm run build:data` if the downloads already exist) |
-| *"No timetable for today"* in the header | The data is for other days. Run `npm run build:data` |
+| *"No timetable for today"* in the header | The data is for other days. The server rebuilds within 15 minutes unless `DATA_REFRESH=0`; otherwise run `npm run build:data`. Check the server log for `Data: rebuild failed` |
 | `fetch:osm` shows HTTP 502/504 or timeouts | The public Overpass servers are busy. Failing tiles are split and retried automatically; if it gives up, run it again later. Finished tiles are cached |
 | Build runs out of memory | Close other programs or raise the limit: `node --max-old-space-size=6144 scripts/build-timetable.js` |
 | *"Real-time error: API key rejected"* | Check `OTD_API_KEY` in `.env` (the Token, not the Token Hash) and that the key is subscribed to GTFS-RT |

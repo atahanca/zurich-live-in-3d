@@ -150,8 +150,8 @@ async function loadJson(url) {
   return r.json();
 }
 
-async function loadNetwork() {
-  const net = await loadJson('data/network.json');
+function applyNetwork(net) {
+  state.generated = net.generated;
   state.routes = net.routes.map((r) => ({ ...r, rgb: hexToRgb(r.col) }));
   state.stops = net.stops;
   state.segs = net.segments.map(decodeSegment);
@@ -161,6 +161,13 @@ async function loadDay(date) {
   const loadingText = $('loading-text');
   if (loadingText) loadingText.textContent = `Loading timetable for ${prettyDate(date)}…`;
   const tt = await loadJson(`data/timetable-${date}.json`);
+  // The server rebuilds the data nightly. Stop/segment indices in a timetable only fit the network.json
+  // of the same build, so a page that stays open across a rebuild loads the new network with it.
+  if (!state.segs.length || (tt.generated && tt.generated !== state.generated)) {
+    const net = await loadJson('data/network.json');
+    if (tt.generated && net.generated !== tt.generated) throw new Error('data is being rebuilt');
+    applyNetwork(net);
+  }
   let maxDur = 0;
   const prevDate = addDays(date, -1);
   state.trips = tt.trips.map(([r, h, n, s, g, d, id, prev, seq]) => {
@@ -906,9 +913,7 @@ function setLive(on) {
 
 async function jumpTo(date, t) {
   if (date !== state.date) {
-    if (!state.days.includes(date) || dayLoading) return;
-    dayLoading = true;
-    try { await loadDay(date); } finally { dayLoading = false; }
+    if (!state.days.includes(date) || !(await switchDay(date))) return;
   }
   state.t = t;
   state.dirty = true;
@@ -1125,6 +1130,28 @@ function wireUi() {
 let lastFrame = performance.now();
 let lastInfo = 0, lastVehicles = 0, lastAlerts = 0, lastCycle = 0;
 let dayLoading = false;
+let lastIndexCheck = 0;
+
+/** Re-read the list of available days (it changes when the server rebuilds the data). */
+async function refreshDays() {
+  try { state.days = (await loadJson('data/index.json')).days; } catch { /* keep the old list */ }
+}
+
+/** Load another day; never throws, so a missing file can't stop the animation loop. */
+async function switchDay(date) {
+  if (dayLoading) return false;
+  dayLoading = true;
+  try {
+    await loadDay(date);
+    return true;
+  } catch (e) {
+    console.warn(`Could not load ${date}: ${e.message}`);
+    await refreshDays();
+    return false;
+  } finally {
+    dayLoading = false;
+  }
+}
 
 async function tick(now) {
   const dt = Math.min(0.25, (now - lastFrame) / 1000);
@@ -1132,20 +1159,21 @@ async function tick(now) {
 
   if (state.live) {
     const z = zurichNow();
-    if (z.date !== state.date && state.days.includes(z.date) && !dayLoading) {
-      dayLoading = true;
-      try { await loadDay(z.date); } finally { dayLoading = false; }
+    if (z.date !== state.date && !dayLoading) {
+      if (state.days.includes(z.date)) await switchDay(z.date);
+      else if (now - lastIndexCheck > 300_000) { lastIndexCheck = now; refreshDays(); } // wait for the nightly rebuild
     }
     state.t = z.sec;
   } else if (state.playing) {
     state.t += dt * state.speed;
     if (state.t >= 86400) {
       const next = addDays(state.date, 1);
-      if (state.days.includes(next) && !dayLoading) {
-        dayLoading = true;
-        try { await loadDay(next); } finally { dayLoading = false; }
-        state.t -= 86400;
-      } else if (!state.days.includes(next)) {
+      if (state.days.includes(next)) {
+        if (!dayLoading) {
+          if (await switchDay(next)) state.t -= 86400;
+          else { state.t = 86399; setPlaying(false); }
+        }
+      } else {
         state.t = 86399; setPlaying(false); // no timetable beyond this day
       }
     }
@@ -1179,7 +1207,6 @@ async function main() {
   try {
     const idx = await loadJson('data/index.json');
     state.days = idx.days;
-    await loadNetwork();
     const now = zurichNow();
     const day = state.days.includes(now.date) ? now.date : state.days[0];
     await loadDay(day);

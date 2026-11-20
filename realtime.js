@@ -107,6 +107,8 @@ export function decodeFeed(buf) {
 }
 
 // ---------------------------------------------------------------- polling + filtering
+const zurichDate = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Zurich', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d).replaceAll('-', '');
+
 export function startRealtime({ dataDir, apiKey, log = console.log }) {
   const state = {
     enabled: !!apiKey,
@@ -130,7 +132,9 @@ export function startRealtime({ dataDir, apiKey, log = console.log }) {
   function refreshWanted() {
     let idx;
     try { idx = JSON.parse(fs.readFileSync(path.join(dataDir, 'index.json'), 'utf8')); } catch { return; }
-    const files = idx.days.map((d) => path.join(dataDir, `timetable-${d}.json`)).filter((f) => fs.existsSync(f));
+    // the feed only covers trips around now; with a week of timetables on disk, read just the nearby days
+    const near = new Set([-1, 0, 1].map((o) => zurichDate(new Date(Date.now() + o * 864e5))));
+    const files = idx.days.filter((d) => near.has(d)).map((d) => path.join(dataDir, `timetable-${d}.json`)).filter((f) => fs.existsSync(f));
     const stamp = files.map((f) => f + fs.statSync(f).mtimeMs).join('|');
     if (stamp === wantedStamp) return;
     const set = new Set();
