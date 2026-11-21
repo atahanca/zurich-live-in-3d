@@ -9,6 +9,8 @@
 //   TRUST_PROXY=1      trust X-Forwarded-Proto/-Host from the reverse proxy (needed with FORCE_HTTPS behind a proxy)
 //   OTD_API_KEY=...    opentransportdata.swiss GTFS-RT key (optional)
 //   DATA_REFRESH=0     don't rebuild the timetable nightly from inside the server (default: on)
+//   ANALYTICS=0        don't count visits (see analytics.js; ANALYTICS_DIR sets where totals are kept)
+//   STATS_PASSWORD=... password for the visitor statistics at /stats (off when unset)
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -17,6 +19,8 @@ import { fileURLToPath } from 'node:url';
 import { startRealtime, loadEnv } from './realtime.js';
 import { startWeather } from './weather.js';
 import { startDataRefresh } from './datarefresh.js';
+import { startAnalytics } from './analytics.js';
+import { checkAuth, renderStats } from './statspage.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, 'public');
@@ -27,6 +31,8 @@ const FORCE_HTTPS = /^(1|true|yes)$/i.test(env.FORCE_HTTPS || '');
 const TRUST_PROXY = /^(1|true|yes)$/i.test(env.TRUST_PROXY || '');
 if (!/^(0|false|no)$/i.test(env.DATA_REFRESH || '')) startDataRefresh({ root: HERE, dataDir: path.join(ROOT, 'data') });
 const weather = startWeather();
+const analytics = startAnalytics({ env, trustProxy: TRUST_PROXY });
+const STATS_PASSWORD = env.STATS_PASSWORD || '';
 const realtime = startRealtime({ dataDir: path.join(ROOT, 'data'), apiKey: env.OTD_API_KEY });
 
 const TYPES = {
@@ -90,7 +96,9 @@ const server = http.createServer((req, res) => {
     res.end(req.method === 'HEAD' ? undefined : body);
   };
 
-  if (req.method !== 'GET' && req.method !== 'HEAD') {
+  // the visit beacon is the only POST (navigator.sendBeacon); its body is empty and ignored
+  const beacon = req.url.startsWith('/api/hit?');
+  if (req.method !== 'GET' && req.method !== 'HEAD' && !(beacon && req.method === 'POST')) {
     send(405, { Allow: 'GET, HEAD', 'Content-Type': 'text/plain' }, 'Method not allowed');
     return;
   }
@@ -110,8 +118,33 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (beacon) {
+    req.resume();
+    analytics?.hit(req, new URL(req.url, 'http://x'));
+    send(204, { 'Cache-Control': 'no-store' });
+    return;
+  }
+
+  if (p === '/stats' || p === '/stats/') {
+    if (!analytics || !STATS_PASSWORD) { send(404, { 'Content-Type': 'text/plain' }, 'Not found'); return; }
+    const auth = checkAuth(req, STATS_PASSWORD);
+    if (auth !== 'ok') {
+      send(auth === 'locked' ? 429 : 401, {
+        'Content-Type': 'text/plain', 'Cache-Control': 'no-store',
+        ...(auth === 'ask' && { 'WWW-Authenticate': 'Basic realm="Zurich 3D stats", charset="UTF-8"' }),
+      }, auth === 'locked' ? 'Too many attempts, try again in 15 minutes' : 'Password required');
+      return;
+    }
+    const asked = +new URL(req.url, 'http://x').searchParams.get('days');
+    const range = [7, 30, 90, 365].includes(asked) ? asked : 30;
+    const body = zlib.gzipSync(renderStats(analytics, range));
+    send(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Encoding': 'gzip', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex', 'Content-Length': body.length }, body);
+    return;
+  }
+
   if (p === '/api/realtime') {
     realtime.touch?.();
+    analytics?.ping(req);
     const body = zlib.gzipSync(realtime.json || '{}');
     send(200, { 'Content-Type': 'application/json', 'Content-Encoding': 'gzip', 'Cache-Control': 'no-store', 'Content-Length': body.length }, body);
     return;

@@ -156,6 +156,8 @@ zurich-3d/
 ├── realtime.js            GTFS-RT polling, protobuf decoder, trip filtering
 ├── weather.js             Open-Meteo fetch and cache for /api/weather
 ├── datarefresh.js         Nightly timetable rebuild inside the running server
+├── analytics.js           Privacy-friendly visit counting (/api/hit)
+├── statspage.js           The /stats dashboard
 ├── scripts/
 │   ├── config.js          Area (BBOX), mode categories, tram line colours, GTFS URL
 │   ├── fetch-gtfs.js      Download Swiss GTFS
@@ -171,6 +173,7 @@ zurich-3d/
 │   ├── vehicles.js        Vehicle models, meshes, liveries
 │   ├── buildings.js       3D buildings, vector-tile decoder, lit-window shader
 │   ├── atmosphere.js      Sun position, sky colours, weather lookup, rain/snow
+│   ├── track.js           Sends the anonymous visit beacons
 │   ├── privacy.html       Privacy policy
 │   ├── imprint.html       Imprint / Impressum
 │   ├── legal.css          Styles for the two legal pages
@@ -191,6 +194,7 @@ zurich-3d/
 | --- | --- |
 | API key, port, interface | `.env` (`OTD_API_KEY`, `PORT`, `HOST`) |
 | Nightly rebuild inside the server | On by default; `DATA_REFRESH=0` in `.env` turns it off (e.g. when cron does it) |
+| Visitor statistics | On by default. `STATS_PASSWORD=…` enables the dashboard at `/stats`; `ANALYTICS_DIR` sets where daily totals are kept (default `~/.zuerich3d/analytics`); `ANALYTICS=0` turns counting off. See [Visitor statistics](#visitor-statistics) |
 | HTTPS redirect + HSTS | `.env`: `FORCE_HTTPS=1` and, behind a reverse proxy, `TRUST_PROXY=1` |
 | Area covered | `BBOX` in `scripts/config.js` (`[west, south, east, north]`). After changing it, run `npm run fetch:osm -- --force` and `npm run build:data` |
 | Tram line colours (badges) | `TRAM_COLORS` in `scripts/config.js` |
@@ -215,6 +219,17 @@ zurich-3d/
 0 16 * * 1,4 cd /opt/zurich-3d && npm run fetch:gtfs -- --force && npm run build:data >> /var/log/zurich-3d-build.log 2>&1
 ```
 
+## Visitor statistics
+
+The server counts visits itself, so no analytics service, cookie banner or third party is involved.
+
+- **What the browser sends** (`public/track.js`): one beacon per page view with the page, phone/tablet/desktop, browser language, the referring website, a `?src=…` campaign tag and whether this browser was here on an earlier day (a date in local storage, nothing else). It also sends one beacon per feature used (clicked a vehicle, searched, time travel and so on, each at most once per visit) and the visit length when the tab is hidden. Nothing is sent when the browser has Global Privacy Control or Do Not Track switched on.
+- **What the server keeps** (`analytics.js`): per-day totals only. To count unique visitors it hashes IP address + browser with a random key that changes every day. The key and the hashes are deleted at midnight (Zurich time), so nobody can be recognised across days. IP addresses are never stored. Bots are left out. "On the map now" comes from the real-time polling every open map does.
+- **Dashboard**: set `STATS_PASSWORD` and open `/stats` (any user name). It shows visitors per day, returning visitors, peak concurrent visitors, hours of day, referrers, campaign links, features used, time on site, devices and languages. Ten wrong passwords lock that address out for 15 minutes.
+- **Leave out your own visits**: open `/?notrack` once on each of your devices (`/?track` undoes it).
+- **Campaign links**: share `zuerich3d.ch/?src=insta`, `?src=reddit` and so on to see which post brought visitors. The tag is removed from the address bar after loading, so people re-sharing the link don't carry it on.
+- **Storage**: one small JSON file per day in `ANALYTICS_DIR`. The default is in the home folder, outside the app, so redeploys don't wipe it.
+
 ## Deployment
 
 The app needs a machine that runs Node.js **continuously**: for the real-time polling, and for the daily rebuild. Shared "web hosting" packages (PHP/WordPress) won't work. A small VPS (2 vCPU, 4 GB RAM, Ubuntu 24.04) is plenty.
@@ -227,7 +242,7 @@ Outline:
 4. Nothing to schedule: the server rebuilds the timetable nightly (see [Keeping data up to date](#keeping-data-up-to-date)).
 5. Point your domain's DNS **A record** to the server's IP address.
 
-Security built into `server.js`: Content-Security-Policy and other security headers on every response, optional HTTPS redirect with HSTS (`FORCE_HTTPS`), GET/HEAD only, no hidden files or path traversal, request timeouts. Fonts and libraries are self-hosted, so visitors' browsers only contact OpenFreeMap (map tiles) and, for the satellite view, swisstopo.
+Security built into `server.js`: Content-Security-Policy and other security headers on every response, optional HTTPS redirect with HSTS (`FORCE_HTTPS`), GET/HEAD only (plus POST for the empty visit beacon), no hidden files or path traversal, request timeouts. Fonts and libraries are self-hosted, so visitors' browsers only contact OpenFreeMap (map tiles) and, for the satellite view, swisstopo.
 
 Before going public, check:
 

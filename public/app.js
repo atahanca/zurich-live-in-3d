@@ -2,6 +2,7 @@
 // Zurich 3D: public transport animated over a 3D map, with real-time delays.
 import { MODELS, MESHES, modelFor, sectionsFor, liveryTexture } from './vehicles.js';
 import { lights, initBuildings, buildingsLayer } from './buildings.js';
+import { track } from './track.js';
 import { sunPosition, nightOf, litShare, skyFor, describe, ICONS, weatherAt, Precipitation, precipIntensity } from './atmosphere.js';
 
 const START_VIEW = { center: [8.5402, 47.3779], zoom: 14.6, pitch: 62, bearing: -28 };
@@ -887,6 +888,7 @@ function select(i, { fly = false } = {}) {
   state.follow = false;
   state.dirty = true;
   if (i < 0) { showInfo(false); return; }
+  track('vehicle');
   renderInfo();
   showInfo(true);
   if (fly) map.flyTo({ center: tripPosition(state.trips[i], state.t), zoom: Math.max(map.getZoom(), 16.3), duration: 1400 });
@@ -912,6 +914,7 @@ function setLive(on) {
   state.live = on;
   $('live').classList.toggle('on', on);
   if (on) { setSpeed(1); state.playing = true; $('play').classList.remove('paused'); }
+  else track('timetravel');
 }
 
 async function jumpTo(date, t) {
@@ -959,6 +962,7 @@ function runSearch(q) {
 function pickSearch(idx) {
   const s = searchIndex[idx];
   if (!s) return;
+  track('search');
   map.flyTo({ center: s.coord, zoom: 17, duration: 1600 });
   toggleSearch(false);
 }
@@ -1022,6 +1026,7 @@ function wireUi() {
     if (open) {
       toggleSearch(false, { restore: false });
       if (isPhone()) { showAlerts(false); if (state.selected >= 0) select(-1); } // no room for two panels
+      track('panel');
     }
     setPanel(open);
   };
@@ -1042,7 +1047,12 @@ function wireUi() {
   new ResizeObserver(layout).observe($('timebar'));
   $('btn-search').onclick = () => toggleSearch($('search').classList.contains('hidden'));
   $('btn-home').onclick = () => map.flyTo({ ...START_VIEW, pitch: $('l-2d').checked ? 0 : START_VIEW.pitch, bearing: $('l-2d').checked ? 0 : START_VIEW.bearing, duration: 1800 });
-  $('btn-alerts').onclick = () => { if (state.selected >= 0) select(-1); showAlerts(!state.alertsOpen || state.selected >= 0); };
+  $('btn-alerts').onclick = () => {
+    if (state.selected >= 0) select(-1);
+    const on = !state.alertsOpen || state.selected >= 0;
+    if (on) track('alerts');
+    showAlerts(on);
+  };
   $('alerts-close').onclick = () => showAlerts(false);
 
   // search
@@ -1063,11 +1073,12 @@ function wireUi() {
 
   // panel: graphics + map
   document.querySelectorAll('#quality button').forEach((b) => { b.onclick = () => setQuality(b.dataset.q); });
-  $('l-2d').onchange = (e) => set2D(e.target.checked);
+  $('l-2d').onchange = (e) => { if (e.target.checked) track('2d'); set2D(e.target.checked); };
   document.querySelectorAll('#basemap button').forEach((b) => {
     b.classList.toggle('on', b.dataset.b === settings.basemap);
     b.onclick = () => {
       settings.basemap = b.dataset.b;
+      if (b.dataset.b === 'satellite') track('satellite');
       document.querySelectorAll('#basemap button').forEach((x) => x.classList.toggle('on', x === b));
       applyBasemap();
       saveSettings();
@@ -1085,7 +1096,7 @@ function wireUi() {
   };
   document.querySelectorAll('#theme button').forEach((b) => {
     b.classList.toggle('on', b.dataset.theme === state.theme);
-    b.onclick = () => { setTheme(b.dataset.theme); saveSettings(); };
+    b.onclick = () => { track('theme'); setTheme(b.dataset.theme); saveSettings(); };
   });
   $('l-bopacity').value = settings.buildingOpacity;
   $('l-bopacity').oninput = (e) => { settings.buildingOpacity = +e.target.value; state.dirty = true; saveSettings(); };
@@ -1097,6 +1108,7 @@ function wireUi() {
     el.checked = settings.show[key];
     el.onchange = (e) => {
       settings.show[key] = e.target.checked;
+      track('layers');
       applyLayerVisibility();
       updateAtmosphere();
       state.dirty = true;

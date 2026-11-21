@@ -6,6 +6,7 @@
   <title>Privacy Policy · Zurich 3D</title>
   <meta name="robots" content="noindex" />
   <link rel="stylesheet" href="legal.css" />
+  <script type="module" src="track.js"></script>
 </head>
 <body>
 <main>
@@ -15,10 +16,11 @@
   </header>
 
   <h1>Privacy Policy</h1>
-  <p class="updated">Last updated: 20 November 2026</p>
+  <p class="updated">Last updated: 21 November 2026</p>
 
   <p>This website shows Zurich's public transport on a 3D map. It collects as little personal data as possible:
-    <strong>no user accounts, no cookies, no tracking or analytics, no advertising.</strong></p>
+    <strong>no user accounts, no cookies, no third-party tracking or analytics, no advertising.</strong>
+    Visits are counted anonymously by this website’s own server (section 3).</p>
 
   <h2>1. Who is responsible</h2>
   <address>
@@ -35,11 +37,21 @@
   <p>Legal basis: legitimate interest in operating a secure website (Art. 31 Swiss Federal Act on Data Protection, FADP; Art. 6(1)(f) GDPR where applicable).
     The Swiss Federal Council recognises the countries of the EU/EEA as providing an adequate level of data protection.</p>
 
-  <h2>3. Settings stored in your browser</h2>
-  <p>Your display settings (for example which layers are switched on, map style, graphics quality) are saved in your browser's local storage, on your own device only.
-    They are never sent to the server. You can delete them at any time by clearing this site's data in your browser settings.</p>
+  <h2>3. Anonymous visitor statistics</h2>
+  <p>To know how many people use the website and which features are useful, this website’s own server counts visits. No external analytics service is used, and nothing is passed on.
+    When a page loads, your browser sends: the page, the type of device (phone, tablet or computer, from the screen size), your browser language, the website you came from (if your browser shares it),
+    a campaign tag if the link contained one (e.g. <code>?src=insta</code>) and whether you had visited on an earlier day. It also reports which features you use (for example clicking a vehicle or searching; each at most once per visit)
+    and how long the visit lasted.</p>
+  <p>To count each visitor only once per day, the server combines your IP address and browser type with a random key and keeps only the resulting code (a one-way hash). The key changes every day and is deleted at midnight together with the codes,
+    so visitors can’t be recognised from one day to the next or identified. Your IP address is not stored. Only daily totals are kept. Whether you visited before is decided by your browser, which stores the date of your last visit in its local storage (see section 4).</p>
+  <p>Nothing is counted when your browser has “Global Privacy Control” or “Do Not Track” switched on.
+    Legal basis: legitimate interest in understanding and improving the website (Art. 31 FADP; Art. 6(1)(f) GDPR where applicable).</p>
 
-  <h2>4. External services your browser contacts</h2>
+  <h2>4. Settings stored in your browser</h2>
+  <p>Your display settings (for example which layers are switched on, map style, graphics quality) are saved in your browser's local storage, on your own device only.
+    They are never sent to the server. The date of your last visit is stored there too, for the statistics in section 3; only “visited before: yes/no” is sent. You can delete them at any time by clearing this site's data in your browser settings.</p>
+
+  <h2>5. External services your browser contacts</h2>
   <p>Fonts and program libraries are served from this website's own server. To display the map, your browser loads data directly from the following services, which therefore receive your IP address and browser information:</p>
   <table>
     <tr><th>Service</th><th>Purpose</th><th>When</th></tr>
@@ -48,7 +60,7 @@
   </table>
   <p>Timetable, real-time and weather data (from opentransportdata.swiss and Open-Meteo.com) are downloaded by the server itself; no information about you is passed on to these services.</p>
 
-  <h2>5. Your rights</h2>
+  <h2>6. Your rights</h2>
   <p>You can request information about the personal data held about you, and have it corrected or deleted, or object to its processing,
     by writing to <a href="mailto:contact@zuerich3d.ch">contact@zuerich3d.ch</a>.
     You can also lodge a complaint with a data protection authority: in Switzerland the Federal Data Protection and Information Commissioner
