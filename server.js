@@ -11,7 +11,8 @@
 //   DATA_REFRESH=0     don't rebuild the timetable nightly from inside the server (default: on)
 //   ANALYTICS=0        don't count visits (see analytics.js; ANALYTICS_DIR sets where totals are kept)
 //   STATS_PASSWORD=... password for the visitor statistics at /stats (off when unset)
-//   MAINTENANCE=1      take the map offline: visitors get a maintenance page (503); imprint, privacy and /stats stay up
+//   MAINTENANCE=1      take the map offline: visitors get a maintenance page (503); imprint, privacy and /stats stay up.
+//                      A file named MAINTENANCE next to server.js does the same (switch it on/off with a deploy).
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -35,8 +36,8 @@ const weather = startWeather();
 const analytics = startAnalytics({ env, trustProxy: TRUST_PROXY });
 const STATS_PASSWORD = env.STATS_PASSWORD || '';
 const realtime = startRealtime({ dataDir: path.join(ROOT, 'data'), apiKey: env.OTD_API_KEY });
-const MAINTENANCE = /^(1|true|yes)$/i.test(env.MAINTENANCE || '');
-if (MAINTENANCE) console.log('Maintenance mode: the map and its APIs are offline (MAINTENANCE=1)');
+const MAINTENANCE = /^(1|true|yes)$/i.test(env.MAINTENANCE || '') || fs.existsSync(path.join(HERE, 'MAINTENANCE'));
+if (MAINTENANCE) console.log('Maintenance mode: the map and its APIs are offline');
 
 // Maintenance mode keeps the legal pages (and what they load) and the owner's /stats reachable.
 const MAINTENANCE_OPEN = new Set(['/imprint.html', '/privacy.html', '/legal.css', '/style.css', '/track.js', '/stats', '/stats/']);
@@ -177,6 +178,12 @@ const server = http.createServer((req, res) => {
     const range = [7, 30, 90, 365].includes(asked) ? asked : 30;
     const body = zlib.gzipSync(renderStats(analytics, range));
     send(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Encoding': 'gzip', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex', 'Content-Length': body.length }, body);
+    return;
+  }
+
+  // the map page asks this first: hosts that serve public/ files directly bypass the maintenance gate above
+  if (p === '/api/status') {
+    send(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }, '{"maintenance":false}');
     return;
   }
 

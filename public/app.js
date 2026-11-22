@@ -5,6 +5,16 @@ import { lights, initBuildings, buildingsLayer } from './buildings.js';
 import { track } from './track.js';
 import { sunPosition, nightOf, litShare, skyFor, describe, ICONS, weatherAt, Precipitation, precipIntensity } from './atmosphere.js';
 
+// Maintenance mode: some hosts serve this page as a plain file, past the server's maintenance gate.
+// Ask the server first and, if it is in maintenance, show its maintenance page instead of the map.
+try {
+  const status = await fetch('api/status', { cache: 'no-store' });
+  if (status.status === 503) {
+    document.documentElement.innerHTML = await status.text();
+    await new Promise(() => {}); // never start the map
+  }
+} catch { /* offline or old server: start the map as usual */ }
+
 const START_VIEW = { center: [8.5402, 47.3779], zoom: 14.6, pitch: 62, bearing: -28 };
 const STYLES = {
   day: 'https://tiles.openfreemap.org/styles/liberty',
