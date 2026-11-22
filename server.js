@@ -11,6 +11,7 @@
 //   DATA_REFRESH=0     don't rebuild the timetable nightly from inside the server (default: on)
 //   ANALYTICS=0        don't count visits (see analytics.js; ANALYTICS_DIR sets where totals are kept)
 //   STATS_PASSWORD=... password for the visitor statistics at /stats (off when unset)
+//   MAINTENANCE=1      take the map offline: visitors get a maintenance page (503); imprint, privacy and /stats stay up
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -34,6 +35,35 @@ const weather = startWeather();
 const analytics = startAnalytics({ env, trustProxy: TRUST_PROXY });
 const STATS_PASSWORD = env.STATS_PASSWORD || '';
 const realtime = startRealtime({ dataDir: path.join(ROOT, 'data'), apiKey: env.OTD_API_KEY });
+const MAINTENANCE = /^(1|true|yes)$/i.test(env.MAINTENANCE || '');
+if (MAINTENANCE) console.log('Maintenance mode: the map and its APIs are offline (MAINTENANCE=1)');
+
+// Maintenance mode keeps the legal pages (and what they load) and the owner's /stats reachable.
+const MAINTENANCE_OPEN = new Set(['/imprint.html', '/privacy.html', '/legal.css', '/style.css', '/track.js', '/stats', '/stats/']);
+const maintenanceOpen = (p) => MAINTENANCE_OPEN.has(p) || p.startsWith('/fonts/');
+const MAINTENANCE_PAGE = Buffer.from(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Back soon · Zurich 3D</title>
+  <meta name="robots" content="noindex" />
+  <link rel="stylesheet" href="/legal.css" />
+</head>
+<body>
+<main>
+  <header class="legal">
+    <a class="brand" href="/"><span class="word">ZÜRICH</span><span class="accent">3D</span></a>
+    <nav><a href="/privacy.html">Privacy</a><a href="/imprint.html">Imprint</a></nav>
+  </header>
+  <h1>Back soon</h1>
+  <p class="updated">Down for maintenance</p>
+  <p>Zurich 3D is offline for a little while for maintenance. The trams are still running, we just can't show them right now.</p>
+  <p>Please check back later.</p>
+</main>
+</body>
+</html>
+`);
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
@@ -122,6 +152,14 @@ const server = http.createServer((req, res) => {
     req.resume();
     analytics?.hit(req, new URL(req.url, 'http://x'));
     send(204, { 'Cache-Control': 'no-store' });
+    return;
+  }
+
+  if (MAINTENANCE && !maintenanceOpen(p)) {
+    send(503, {
+      'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Retry-After': '3600',
+      'X-Robots-Tag': 'noindex', 'Content-Length': MAINTENANCE_PAGE.length,
+    }, MAINTENANCE_PAGE);
     return;
   }
 

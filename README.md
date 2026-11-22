@@ -195,6 +195,7 @@ zurich-3d/
 | API key, port, interface | `.env` (`OTD_API_KEY`, `PORT`, `HOST`) |
 | Nightly rebuild inside the server | On by default; `DATA_REFRESH=0` in `.env` turns it off (e.g. when cron does it) |
 | Visitor statistics | On by default. `STATS_PASSWORD=…` enables the dashboard at `/stats`; `ANALYTICS_DIR` sets where daily totals are kept (default `~/.zuerich3d/analytics`); `ANALYTICS=0` turns counting off. See [Visitor statistics](#visitor-statistics) |
+| Maintenance mode | `MAINTENANCE=1` in `.env` (or the host's environment variables), then restart: visitors get a "back soon" page (HTTP 503) instead of the map, the APIs are off, and the imprint, privacy policy and `/stats` stay reachable. Remove it and restart to bring the map back |
 | HTTPS redirect + HSTS | `.env`: `FORCE_HTTPS=1` and, behind a reverse proxy, `TRUST_PROXY=1` |
 | Area covered | `BBOX` in `scripts/config.js` (`[west, south, east, north]`). After changing it, run `npm run fetch:osm -- --force` and `npm run build:data` |
 | Tram line colours (badges) | `TRAM_COLORS` in `scripts/config.js` |
