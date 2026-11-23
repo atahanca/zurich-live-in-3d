@@ -1,6 +1,6 @@
 # zurich-live-in-3d
 
-A 3D map of Zurich that shows every tram, bus, train, boat and funicular moving through the city, with real-time delays. Inspired by [geneva3d.ch](https://geneva3d.ch/).
+A 3D map of Zurich that shows every tram, bus, train, boat and funicular moving through the city, with real-time delays. Inspired by [Genève 3D](https://geneva3d.ch/) by Arnaud Ricci, which this project's idea and much of its interface are modelled on; the code is written independently.
 
 - **~20,000 trips a day** across the city of Zurich and its surroundings: VBZ trams and buses, S-Bahn and long-distance trains, ZSG boats, Polybahn, Dolderbahn and more
 - **Real-time delays and cancellations** from the official Swiss GTFS-RT feed
@@ -70,7 +70,7 @@ How it behaves:
 - It polls **only while a browser has the page open**, because each response is about 8 MB. That avoids around 20 GB of traffic per day when nobody is watching.
 - The key stays on the server. Browsers only receive a small, filtered JSON file for the trips in the area.
 - Delays carry forward from stop to stop (GTFS-RT semantics), cancelled trips disappear, and skipped stops are crossed out in the vehicle panel.
-- Switzerland publishes no open GPS positions. Positions are the timetable shifted by the reported delays, the same approach geneva3d uses.
+- Switzerland publishes no open GPS positions. Positions are the timetable shifted by the reported delays, the same approach Genève 3D uses.
 
 ## Commands
 
