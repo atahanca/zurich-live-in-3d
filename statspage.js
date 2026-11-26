@@ -126,7 +126,7 @@ const CSS = `
 body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing:antialiased; }
 main { max-width:1100px; margin:0 auto; padding:24px 16px 48px; }
 header { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:20px; }
-.brand { font-weight:800; letter-spacing:.32em; font-size:16px; color:var(--fg); text-decoration:none; } .brand .accent { color:var(--accent); letter-spacing:.25em; }
+.brand { font-weight:800; letter-spacing:.32em; font-size:16px; color:var(--fg); text-decoration:none; } .brand .word { color:#fff; } .brand .accent { color:#2b86e8; letter-spacing:.25em; }
 .h { color:var(--muted); font-size:13px; }
 nav { margin-left:auto; display:flex; gap:4px; background:var(--card); border:1px solid var(--line); border-radius:9px; padding:3px; }
 nav a { color:var(--muted); text-decoration:none; font-size:12px; padding:5px 10px; border-radius:6px; }
