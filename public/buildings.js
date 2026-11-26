@@ -32,10 +32,20 @@ float winHash(vec2 p) {
 }
 vec4 applyWindows(vec4 c) {
   float n = windows.night;
-  // the city gets darker at night (and a little under heavy cloud)
-  vec3 night = c.rgb * 0.16 + vec3(0.018, 0.022, 0.032);
+  bool wall = vWin.z > 0.5;
+  // contact shadow: walls darken a little towards the ground, where less sky reaches them
+  if (wall) c.rgb *= mix(0.8, 1.0, smoothstep(0.0, 7.0, vWin.y));
+  // the city gets darker at night (and a little under heavy cloud), but stays readable: facades keep
+  // the moonlit/unlit contrast from the lighting pass, shifted to cool blue, and roofs catch the sky glow
+  vec3 night = c.rgb * vec3(0.30, 0.33, 0.42) + vec3(0.020, 0.024, 0.036);
+  if (!wall) night += vec3(0.018, 0.022, 0.034);
   c.rgb = mix(c.rgb * (1.0 - 0.12 * windows.dim), night, n);
-  if (vWin.z < 0.5 || n < 0.01) return c;          // roofs never get windows
+  if (!wall || n < 0.01) return c;                  // roofs never get windows
+
+  // street lamps wash the lower floors in warm light, in pools roughly one lamp spacing apart
+  float pool = 0.65 + 0.35 * cos(vWin.x * 0.25);
+  float up = (1.0 - smoothstep(0.0, 16.0, vWin.y)) * pool;
+  c.rgb += vec3(1.0, 0.64, 0.32) * up * n * 0.11;
 
   // one cell = one window: 2.8 m wide, 3.2 m storey height, first row starts 0.8 m above the ground
   vec2 g = vec2(vWin.x / 2.8, (vWin.y - 0.8) / 3.2);

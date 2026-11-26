@@ -551,7 +551,9 @@ let weatherData = null;
 let precip = null;
 const ambientLight = new deck.AmbientLight({ color: [255, 255, 255], intensity: 1.0 });
 const sunLight = new deck.DirectionalLight({ color: [255, 250, 240], intensity: 1.4, direction: [-1, -1, -2] });
-const lighting = new deck.LightingEffect({ ambientLight, sunLight });
+// a cool moon from the south-east keeps building faces apart at night (sun-lit faces vs. shaded ones)
+const moonLight = new deck.DirectionalLight({ color: [170, 190, 235], intensity: 0, direction: [-0.45, 0.55, -0.7] });
+const lighting = new deck.LightingEffect({ ambientLight, sunLight, moonLight });
 
 async function pollWeather() {
   try {
@@ -585,6 +587,7 @@ function updateAtmosphere(force = false) {
   const low = Math.min(1, Math.max(0, (sun.alt - 2) / 18)); // warm light when the sun is low
   sunLight.color = [255, Math.round(200 + 50 * low), Math.round(150 + 90 * low)];
   sunLight.intensity = day * (showWx ? 1.7 - cloud * 0.8 : 1.7);
+  moonLight.intensity = night * (showWx ? 1.1 - cloud * 0.6 : 1.1);
   ambientLight.intensity = 0.6 + day * 0.4;
   ambientLight.color = night > 0.5 ? [190, 205, 235] : [255, 255, 255];
 
