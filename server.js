@@ -69,14 +69,15 @@ const MAINTENANCE_PAGE = Buffer.from(`<!doctype html>
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon',
-  '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8',
+  '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8', '.wasm': 'application/wasm',
 };
 
-// External hosts the browser talks to: map tiles/styles/fonts (OpenFreeMap) and satellite imagery (swisstopo).
-const MAP_HOSTS = 'https://tiles.openfreemap.org https://wmts.geo.admin.ch';
+// External hosts the browser talks to: map tiles/styles/fonts (OpenFreeMap), satellite imagery and 3D
+// building models (swisstopo).
+const MAP_HOSTS = 'https://tiles.openfreemap.org https://wmts.geo.admin.ch https://3d.geo.admin.ch';
 const CSP = [
   "default-src 'self'",
-  "script-src 'self'",
+  "script-src 'self' 'wasm-unsafe-eval'", // WebAssembly: the bundled Draco decoder for the 3D buildings
   "worker-src 'self' blob:",          // MapLibre runs its tile workers from blob: URLs
   "child-src blob:",
   "style-src 'self' 'unsafe-inline'", // MapLibre/deck.gl and line badges use inline style attributes

@@ -133,10 +133,11 @@ The Swiss GTFS has **no route shapes**, so paths are reconstructed from OpenStre
 - If a far stop lies outside the downloaded area (e.g. Zürich HB → Basel), the path follows the tracks to the edge of the network and continues straight from there.
 - About 98% of segments follow real track or road. The rest fall back to a straight line.
 
-### In the browser (`public/app.js`, `public/vehicles.js`, `public/buildings.js`, `public/atmosphere.js`)
+### In the browser (`public/app.js`, `public/vehicles.js`, `public/buildings.js`, `public/swissbuildings.js`, `public/atmosphere.js`)
 
 - **Base map:** [MapLibre GL](https://maplibre.org) with [OpenFreeMap](https://openfreemap.org) vector tiles. At night it switches to a dark style with its own palette, a sodium glow along streets and rows of street lamps.
 - **Buildings:** deck.gl draws the 3D buildings from the same vector tiles (a small built-in decoder reads only the building layer). A shader extension paints lit windows on the walls at night. Windows are about 2.8 m × 3.2 m storeys, so they stay to scale at every zoom. The share of lit windows follows the time: they come on at dusk, most go off after midnight, and some come back before work.
+- **Real 3D buildings close up:** from zoom 16, swisstopo's [swissBUILDINGS3D](https://www.swisstopo.admin.ch/en/landscape-model-swissbuildings3d-3-0-beta) models (real roof shapes, towers, courtyards) replace the boxes in a box of about 1 km around the map centre (600 m on phones, off at "low" quality). The tiles are fetched straight from swisstopo's 3D Tiles service and decoded in the browser with the bundled Draco decoder. The models sit at their real height above sea level while the map is flat, so each building is lowered until its lowest point touches the ground. They use the same facade shader (windows, night lights, shadows); roofs with a real pitch get tile colours, flat ones gravel, green or membrane.
 - **Sun and sky:** sun altitude and azimuth come from the simulated time. They drive the light direction and colour (warm when the sun is low), the sky and fog colours, and the gradual change from day to night.
 - **Weather:** `/api/weather` serves Open-Meteo data (MeteoSwiss ICON-CH models) cached on the server for 15 minutes. Rain and snow are drawn as falling particles; clouds grey the sky and soften the sunlight. Live mode uses current conditions; when you scrub the timeline, the hourly values for that time are used (yesterday to two days ahead).
 - **Vehicles:** [deck.gl](https://deck.gl) instanced meshes. Each vehicle is a set of **articulated sections** placed separately along its path, so a 200 m train or a 43 m tram follows the curves.
@@ -172,12 +173,13 @@ zurich-3d/
 │   ├── app.js             Map, simulation loop, UI, real-time integration
 │   ├── vehicles.js        Vehicle models, meshes, liveries
 │   ├── buildings.js       3D buildings, vector-tile decoder, lit-window shader
+│   ├── swissbuildings.js  Close-up swisstopo 3D models: tile loader, b3dm/Draco parser, mesh layer
 │   ├── atmosphere.js      Sun position, sky colours, weather lookup, rain/snow
 │   ├── track.js           Sends the anonymous visit beacons
 │   ├── privacy.html       Privacy policy
 │   ├── imprint.html       Imprint / Impressum
 │   ├── legal.css          Styles for the two legal pages
-│   ├── vendor/            Self-hosted MapLibre GL JS and deck.gl (with licences)
+│   ├── vendor/            Self-hosted MapLibre GL JS, deck.gl and the Draco decoder (with licences)
 │   ├── fonts/             Self-hosted Inter font (OFL)
 │   └── data/              Generated: network.json, timetable-YYYYMMDD.json, index.json
 ├── data/osm/              Committed snapshot of the OSM network (gzipped)
@@ -243,7 +245,7 @@ Outline:
 4. Nothing to schedule: the server rebuilds the timetable nightly (see [Keeping data up to date](#keeping-data-up-to-date)).
 5. Point your domain's DNS **A record** to the server's IP address.
 
-Security built into `server.js`: Content-Security-Policy and other security headers on every response, optional HTTPS redirect with HSTS (`FORCE_HTTPS`), GET/HEAD only (plus POST for the empty visit beacon), no hidden files or path traversal, request timeouts. Fonts and libraries are self-hosted, so visitors' browsers only contact OpenFreeMap (map tiles) and, for the satellite view, swisstopo.
+Security built into `server.js`: Content-Security-Policy and other security headers on every response, optional HTTPS redirect with HSTS (`FORCE_HTTPS`), GET/HEAD only (plus POST for the empty visit beacon), no hidden files or path traversal, request timeouts. Fonts and libraries are self-hosted, so visitors' browsers only contact OpenFreeMap (map tiles) and swisstopo (3D building models when zoomed in, and the satellite view).
 
 Before going public, check:
 
@@ -275,6 +277,8 @@ Before going public, check:
 | Base map tiles | [OpenFreeMap](https://openfreemap.org) | Free; attribution |
 | Map rendering | [MapLibre GL JS](https://maplibre.org) | BSD-3-Clause |
 | 3D layers | [deck.gl](https://deck.gl) | MIT |
+| 3D building models (swissBUILDINGS3D) | © [swisstopo](https://www.swisstopo.admin.ch), via the [3D Tiles service](https://docs.geo.admin.ch/visualize-data/3d-tiles.html) | [Free geodata](https://www.swisstopo.admin.ch/en/terms-of-use-free-geodata-and-geoservices): free use including commercial; source reference "© swisstopo" required; fair-use request limits |
+| Mesh decompression | [Draco](https://github.com/google/draco) decoder (bundled) | Apache-2.0 |
 | Weather | [Open-Meteo.com](https://open-meteo.com) (MeteoSwiss ICON-CH) | CC BY 4.0; the free API is for non-commercial use (commercial use needs an [API plan](https://open-meteo.com/en/pricing)) |
 
 Vehicle models and liveries are simplified representations made for this project. They contain no operator logos or trademarks.
@@ -287,7 +291,8 @@ Vehicle models and liveries are simplified representations made for this project
 - [x] Articulated vehicle models with liveries, day/night mode
 - [ ] Disruption messages (GTFS Service Alerts)
 - [ ] Optional colouring of vehicles by delay
-- [ ] Terrain (Uetliberg, Zürichberg) and detailed 3D buildings (Stadt Zürich / swisstopo)
+- [x] Detailed 3D buildings close up (swisstopo swissBUILDINGS3D)
+- [ ] Terrain (Uetliberg, Zürichberg)
 - [x] Sun position lighting, weather (rain/snow), lit windows at night
 - [ ] Stop search, departure boards
 - [ ] Deployment scripts (systemd, Caddy, cron)

@@ -7,25 +7,28 @@ export const lights = {
   night: 0,     // 0 = daylight, 1 = full night (walls dark, windows glowing)
   lit: 0.4,     // share of windows with the light on
   dim: 0,       // extra darkening for overcast/rain (0..1)
+  // lng/lat box [west, south, east, north] where real 3D models replace the boxes (see swissbuildings.js)
+  box: [0, 0, 0, 0],
 };
 
 const UNIFORMS = `layout(std140) uniform windowsUniforms {
   float night;
   float lit;
   float dim;
+  vec4 box;
 } windows;
 `;
 
-const windowsModule = {
+export const windowsModule = {
   name: 'windows',
   vs: UNIFORMS,
   fs: UNIFORMS,
-  uniformTypes: { night: 'f32', lit: 'f32', dim: 'f32' },
+  uniformTypes: { night: 'f32', lit: 'f32', dim: 'f32', box: 'vec4<f32>' },
 };
 
 // Per-building values reach the shader packed into the fill colour: RGB is the wall colour, the alpha
 // byte (unused, since the layer's opacity prop handles transparency) holds roof kind * 32 + a 0..31 seed.
-const VS_DECL = /* glsl */ `
+export const VS_DECL = /* glsl */ `
 out vec3 vWin;
 out vec3 vBld;   // roof kind, per-building seed 0..1, building height in metres
 vec3 roofColor(float kind, float s) {
@@ -39,7 +42,7 @@ vec3 roofColor(float kind, float s) {
 }
 `;
 
-const FS_DECL = /* glsl */ `
+export const FS_DECL = /* glsl */ `
 in vec3 vWin;
 in vec3 vBld;
 float winHash(vec2 p) {
@@ -117,7 +120,7 @@ class WindowsExtension extends deck.LayerExtension {
     return {
       modules: [windowsModule],
       inject: {
-        'vs:#decl': VS_DECL,
+        'vs:#decl': VS_DECL + 'out vec2 vLL;',
         // Wall coordinate system in metres: x along the wall, y height above ground, z = 1 on walls.
         // Built from the wall's own lng/lat corners (pos/nextPos of the side shader), not from
         // geometry.position: at high zoom deck.gl measures that relative to the view centre, so
@@ -127,6 +130,7 @@ class WindowsExtension extends deck.LayerExtension {
           vBld = vec3(floor(bCode / 32.0), mod(bCode, 32.0) / 31.0, elevations);
           vColor.a = layer.opacity;                           // the alpha byte was data, not transparency
           #ifdef IS_SIDE_VERTEX
+            vLL = mix(pos.xy, nextPos.xy, positions.x);
             const vec2 WIN_REF = vec2(8.54, 47.37);           // fixed reference near Zurich
             const vec2 WIN_M = vec2(75398.0, 110540.0);       // metres per degree lng/lat there
             vec2 wa = (pos.xy - WIN_REF) * WIN_M;
@@ -134,20 +138,25 @@ class WindowsExtension extends deck.LayerExtension {
             vec2 wt = normalize(wb - wa + vec2(1e-6));
             vWin = vec3(dot(mix(wa, wb, positions.x), wt), elevations * positions.y, 1.0);
           #else
+            vLL = vertexPositions.xy;
             vWin = vec3(0.0);                                 // roofs: no windows
             // roofs get their own material, lit like the walls
             if (solidPolygon.extruded) vColor.rgb = lighting_getLightColor(
               roofColor(vBld.x, vBld.y), project.cameraPosition, geometry.position.xyz, geometry.normal);
           #endif
         `,
-        'fs:#decl': FS_DECL,
-        'fs:DECKGL_FILTER_COLOR': 'color = applyWindows(color);',
+        'fs:#decl': FS_DECL + 'in vec2 vLL;',
+        // inside the box the real 3D models stand instead: cut the boxes out (in the shadow pass too)
+        'fs:DECKGL_FILTER_COLOR': /* glsl */ `
+          if (all(greaterThan(vLL, windows.box.xy)) && all(lessThan(vLL, windows.box.zw))) discard;
+          color = applyWindows(color);
+        `,
       },
     };
   }
   draw(params, extension) {
     if (!extension.isEnabled(this)) return;
-    this.setShaderModuleProps({ windows: { night: lights.night, lit: lights.lit, dim: lights.dim } });
+    this.setShaderModuleProps({ windows: { night: lights.night, lit: lights.lit, dim: lights.dim, box: lights.box } });
   }
 }
 WindowsExtension.extensionName = 'WindowsExtension';
@@ -204,14 +213,14 @@ const zz = (n) => (n % 2 ? -(n + 1) / 2 : n / 2);
 // ---------------------------------------------------------------- building appearance
 
 /** 32-bit integer hash, for stable per-building randomness. */
-function hash32(x) {
+export function hash32(x) {
   x = Math.imul(x ^ (x >>> 16), 0x7feb352d);
   x = Math.imul(x ^ (x >>> 15), 0x846ca68b);
   return (x ^ (x >>> 16)) >>> 0;
 }
 
 // Zurich facades: [colour, weight for older/smaller buildings, weight for modern/large ones]
-const FACADES = [
+export const FACADES = [
   [[240, 236, 226], 5, 3],     // warm white
   [[234, 224, 200], 4, 1],     // cream
   [[222, 204, 168], 3, 1],     // sandstone
@@ -223,7 +232,7 @@ const FACADES = [
   [[188, 186, 180], 0.4, 3],   // concrete
 ];
 
-function pickWeighted(r, list, col) {
+export function pickWeighted(r, list, col) {
   let total = 0;
   for (const it of list) total += it[col];
   for (const it of list) if ((r -= it[col] / total) < 0) return it[0];

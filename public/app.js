@@ -2,6 +2,7 @@
 // Zurich 3D: public transport animated over a 3D map, with real-time delays.
 import { MODELS, MESHES, modelFor, sectionsFor, liveryTexture } from './vehicles.js';
 import { lights, initBuildings, buildingsLayer } from './buildings.js';
+import { swiss } from './swissbuildings.js';
 import { track } from './track.js';
 import { sunPosition, nightOf, litShare, skyFor, describe, ICONS, weatherAt, Precipitation, precipIntensity } from './atmosphere.js';
 
@@ -662,8 +663,12 @@ function buildLayers(vehicles) {
       parameters: { depthWriteEnabled: false }, extensions: [receiverOnly],
     }));
   }
+  // close up, real 3D models (swisstopo) replace the box buildings in a box around the map centre
+  swiss.update(map.getCenter(), settings.show.buildings && settings.quality !== 'low' ? map.getZoom() : 0, isPhone() ? 300 : 500);
+  $('credit-swisstopo').hidden = settings.basemap !== 'satellite' && !swiss.active;
   const bl = buildingsLayer({ visible: settings.show.buildings, opacity: settings.buildingOpacity / 100 });
   if (bl) layers.push(bl);
+  layers.push(...swiss.layers({ visible: settings.show.buildings, opacity: settings.buildingOpacity / 100 }));
 
   if (sel >= 0) {
     const tr = state.trips[sel];
@@ -1323,6 +1328,7 @@ async function main() {
   });
   // vehicles outside the old view must be rebuilt as soon as the view moves
   map.on('moveend', () => { state.dirty = true; });
+  swiss.onChange = () => { state.dirty = true; }; // a 3D-model tile arrived
   map.on('zoom', () => { const was = lighting.shadowColor[3] > 0.01; applyShadow(); if (was !== lighting.shadowColor[3] > 0.01) state.dirty = true; });
   map.on('move', () => { if (performance.now() - lastVehicles > 100) state.dirty = true; });
   map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
