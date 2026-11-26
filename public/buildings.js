@@ -48,6 +48,9 @@ float winHash(vec2 p) {
   return fract(p.x * p.y);
 }
 vec4 applyWindows(vec4 c) {
+#ifdef MODULE_SHADOW
+  if (shadow.drawShadowMap) return c;   // this pass writes packed depth into the colour: leave it alone
+#endif
   float n = windows.night;
   float wall = step(0.5, vWin.z);   // 1 on walls, 0 on roofs
   float s = vBld.y, H = vBld.z, y = vWin.y;

@@ -550,10 +550,37 @@ let lastSky = '';
 let weatherData = null;
 let precip = null;
 const ambientLight = new deck.AmbientLight({ color: [255, 255, 255], intensity: 1.0 });
-const sunLight = new deck.DirectionalLight({ color: [255, 250, 240], intensity: 1.4, direction: [-1, -1, -2] });
-// a cool moon from the south-east keeps building faces apart at night (sun-lit faces vs. shaded ones)
-const moonLight = new deck.DirectionalLight({ color: [170, 190, 235], intensity: 0, direction: [-0.45, 0.55, -0.7] });
-const lighting = new deck.LightingEffect({ ambientLight, sunLight, moonLight });
+// One directional light: the sun by day, turning into a cool moon from the south-east at night (which keeps
+// building faces apart). It casts the shadows (buildings onto buildings, vehicles and the ground), whose
+// strength follows the sun and the clouds, see updateAtmosphere. A single light on purpose: deck.gl renders
+// a shadow map for every directional light, shadow-casting or not.
+const sunLight = new deck.DirectionalLight({ color: [255, 250, 240], intensity: 1.4, direction: [-1, -1, -2], _shadow: true });
+const MOON_DIR = [-0.45, 0.55, -0.7];
+const MOON_RGB = [170, 190, 235];
+const lighting = new deck.LightingEffect({ ambientLight, sunLight });
+lighting.shadowColor = [0, 0, 0, 0];
+// skip the extra shadow-map render (every layer drawn again from the sun) while no shadow is visible
+const renderShadowMaps = lighting.preRender.bind(lighting);
+lighting.preRender = (opts) => { if (lighting.shadowColor[3] > 0.01) renderShadowMaps(opts); };
+let shadowStrength = 0; // from sun and clouds; the zoom fade is applied on top
+/**
+ * deck.gl stretches one shadow map over the whole view: zoomed out it is too coarse and greys the city,
+ * so shadows fade in only once they are sharp.
+ */
+function applyShadow() {
+  const z = map ? map.getZoom() : 0;
+  lighting.shadowColor[3] = shadowStrength * Math.max(0, Math.min(1, (z - 15.3) / 1.0));
+}
+// an invisible ground plane over the city that only shows the shadows falling on it
+const SHADOW_GROUND = [[8.35, 47.24], [8.75, 47.24], [8.75, 47.5], [8.35, 47.5]];
+/** Keeps a layer out of the shadow map, so it receives shadows without shadowing itself (acne). */
+class ShadowReceiverOnly extends deck.LayerExtension {
+  getShaders() {
+    return { inject: { 'fs:DECKGL_FILTER_COLOR': '\n#ifdef MODULE_SHADOW\nif (shadow.drawShadowMap) discard;\n#endif\n' } };
+  }
+}
+ShadowReceiverOnly.extensionName = 'ShadowReceiverOnly';
+const receiverOnly = new ShadowReceiverOnly();
 
 async function pollWeather() {
   try {
@@ -580,14 +607,21 @@ function updateAtmosphere(force = false) {
   lights.lit = litShare(t, night);
   lights.dim = showWx ? cloud * 0.8 : 0;
 
-  // deck.gl lighting follows the sun; at night only a dim, cool ambient light remains
+  // deck.gl lighting follows the sun; at night a dim, cool moon and ambient light remain
   const day = 1 - night;
   const altR = Math.max(sun.alt, 4) * Math.PI / 180, azR = sun.az * Math.PI / 180;
-  sunLight.direction = [-Math.sin(azR) * Math.cos(altR), -Math.cos(azR) * Math.cos(altR), -Math.sin(altR)];
+  const sunDir = [-Math.sin(azR) * Math.cos(altR), -Math.cos(azR) * Math.cos(altR), -Math.sin(altR)];
+  const dir = sunDir.map((v, i) => v + (MOON_DIR[i] - v) * night);
+  const len = Math.hypot(...dir) || 1;
+  sunLight.direction = dir.map((v) => v / len);
   const low = Math.min(1, Math.max(0, (sun.alt - 2) / 18)); // warm light when the sun is low
-  sunLight.color = [255, Math.round(200 + 50 * low), Math.round(150 + 90 * low)];
-  sunLight.intensity = day * (showWx ? 1.7 - cloud * 0.8 : 1.7);
-  moonLight.intensity = night * (showWx ? 1.1 - cloud * 0.6 : 1.1);
+  const sunRgb = [255, 200 + 50 * low, 150 + 90 * low];
+  sunLight.color = sunRgb.map((v, i) => Math.round(v + (MOON_RGB[i] - v) * night));
+  sunLight.intensity = day * (showWx ? 1.7 - cloud * 0.8 : 1.7) + night * (showWx ? 1.1 - cloud * 0.6 : 1.1);
+  // shadows are cool (lit by the blue sky), fade at dusk and soften under cloud
+  lighting.shadowColor = [0.06, 0.08, 0.13, 0];
+  shadowStrength = day * (showWx ? 0.38 - cloud * 0.25 : 0.38);
+  applyShadow();
   ambientLight.intensity = 0.6 + day * 0.4;
   ambientLight.color = night > 0.5 ? [190, 205, 235] : [255, 255, 255];
 
@@ -622,6 +656,12 @@ function buildLayers(vehicles) {
   const night = state.theme === 'night';
   const sel = state.selected;
   const layers = [];
+  if (lighting.shadowColor[3] > 0.01) {
+    layers.push(new deck.SolidPolygonLayer({
+      id: 'shadow-ground', data: [SHADOW_GROUND], getPolygon: (d) => d, getFillColor: [0, 0, 0, 0],
+      parameters: { depthWriteEnabled: false }, extensions: [receiverOnly],
+    }));
+  }
   const bl = buildingsLayer({ visible: settings.show.buildings, opacity: settings.buildingOpacity / 100 });
   if (bl) layers.push(bl);
 
@@ -1283,6 +1323,7 @@ async function main() {
   });
   // vehicles outside the old view must be rebuilt as soon as the view moves
   map.on('moveend', () => { state.dirty = true; });
+  map.on('zoom', () => { const was = lighting.shadowColor[3] > 0.01; applyShadow(); if (was !== lighting.shadowColor[3] > 0.01) state.dirty = true; });
   map.on('move', () => { if (performance.now() - lastVehicles > 100) state.dirty = true; });
   map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
   overlay = new deck.MapboxOverlay({
