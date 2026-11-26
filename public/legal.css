@@ -1,19 +1,23 @@
-/* Shared styles for the privacy policy and imprint pages */
+/* Shared styles for the privacy policy, imprint and maintenance pages: the light "Swiss signage" look */
 @import url("style.css");
 html, body { height: auto; overflow: auto; }
-body { background: #0b0e13; color: #d6dbe2; }
-main { max-width: 760px; margin: 0 auto; padding: 32px 20px 64px; font-size: 15px; line-height: 1.65; }
-header.legal { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
-header.legal .brand { padding: 0; font-size: 18px; color: var(--fg); text-decoration: none; }
-header.legal nav a { color: var(--muted); margin-left: 16px; text-decoration: none; font-size: 13px; }
-header.legal nav a:hover, header.legal nav a[aria-current] { color: var(--fg); }
-h1 { font-size: 28px; margin: 0 0 6px; color: var(--fg); }
-h2 { font-size: 17px; margin: 30px 0 8px; color: var(--fg); }
-p, li { color: #c3cad3; }
-a { color: var(--accent); }
-.updated { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+body { background: var(--panel); color: var(--ink); }
+main { max-width: 760px; margin: 0 auto; padding: 28px 20px 64px; font-size: 15px; line-height: 1.65; }
+header.legal {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  margin-bottom: 32px; padding-bottom: 16px; border-bottom: 2px solid var(--zh-blue);
+}
+header.legal nav a { color: var(--ink-2); margin-left: 18px; text-decoration: none; font-size: 13px; font-weight: 600; }
+header.legal nav a:hover { color: var(--zh-blue); }
+header.legal nav a[aria-current] { color: var(--zh-blue); }
+h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 4px; }
+h2 { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; margin: 32px 0 8px; padding-top: 14px; border-top: 1px solid var(--rule); }
+p, li { color: var(--ink-2); }
+strong { color: var(--ink); }
+a { color: var(--zh-blue); }
+.updated { color: var(--ink-3); font-size: 13px; margin-bottom: 24px; }
 address { font-style: normal; }
 table { border-collapse: collapse; width: 100%; font-size: 14px; }
-td, th { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-th { color: var(--muted); font-weight: 600; }
-footer.legal { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+td, th { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { color: var(--ink-3); font-weight: 600; }
+footer.legal { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--rule); color: var(--ink-3); font-size: 13px; }

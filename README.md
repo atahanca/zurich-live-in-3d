@@ -6,7 +6,7 @@ A 3D map of Zurich that shows every tram, bus, train, boat and funicular moving 
 - **Real-time delays and cancellations** from the official Swiss GTFS-RT feed
 - **Realistic vehicles**: articulated trams (Flexity, Cobra, Tram 2000), buses and trolleybuses, double-deck trains, each in its operator's livery, bending through curves along the real tracks and roads
 - **3D city** with buildings, day and night mode, and lit windows at night
-- **Time travel**: pause, speed up to ×300, scrub through the day, or jump back to live
+- **Time travel**: pause, speed up to 600×, scrub through the day, or jump back to live
 - **Follow mode**: click any vehicle to see its stops, scheduled times and delay, then ride along with it
 
 No npm packages and no build step. Node.js and a browser are all it needs.
@@ -90,10 +90,10 @@ How it behaves:
 | Pan, zoom | Drag, scroll |
 | Rotate, tilt | Right-drag (or Ctrl-drag), or the compass buttons |
 | Vehicle details | Click a vehicle: line, destination, all stops with times and delays |
-| Follow a vehicle | **Follow this vehicle** in the panel; Esc or dragging the map stops it |
-| Show/hide a mode | Click the Trams / Buses / Trains / … chips at the top (they also show how many are running) |
-| Time | Pause, ×1–×300 speed, drag the slider to any time of day, **● LIVE** to return to now; Space toggles play/pause |
-| Layers | 3D buildings, route network, stops, line numbers, light trails, day/night map |
+| Ride along with a vehicle | **Ride along** in the vehicle card; Esc or dragging the map stops it |
+| Show/hide a mode | **Layers** (top right) → tick or untick Trams / Buses / Trains / … (each shows how many are running) |
+| Time | In the top bar: pause, speed 1×–600×, drag the time scrubber under the bar to any time of day, **Now** to return to the present; Space toggles play/pause |
+| Layers | The **Layers** drawer: background (streets, aerial, blank), day/night, 3D buildings, line network, stops, line numbers, motion trails, weather, rendering quality |
 
 ## How it works
 

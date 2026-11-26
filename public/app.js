@@ -96,10 +96,6 @@ const addDays = (ymd, n) => {
   return d.toISOString().slice(0, 10).replaceAll('-', '');
 };
 const prettyDate = (ymd) => ymdDate(ymd).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-const periodOf = (s) => {
-  const h = mod(s, 86400) / 3600;
-  return h < 5 ? 'NIGHT' : h < 12 ? 'MORNING' : h < 18 ? 'AFTERNOON' : h < 22 ? 'EVENING' : 'NIGHT';
-};
 
 /** Approximate sunrise/sunset for Zurich in local seconds after midnight (NOAA formulas). */
 function sunTimes(ymd) {
@@ -532,6 +528,7 @@ function applyBasemap() {
 }
 
 function setTheme(theme) {
+  document.documentElement.dataset.ui = theme;
   if (theme === state.theme && map.getLayer('network')) return;
   state.theme = theme;
   settings.theme = theme;
@@ -736,9 +733,9 @@ function renderStats() {
   for (const tr of state.trips) lines[tr.cat].add(tr.r);
   const parts = ['tram', 'bus', 'rail']
     .filter((c) => lines[c].size)
-    .map((c) => `<b>${lines[c].size}</b> ${c === 'rail' ? 'TRAIN' : CATS[c].one.toUpperCase()} LINES`);
+    .map((c) => `<b>${lines[c].size}</b> ${c === 'rail' ? 'train' : CATS[c].one.toLowerCase()} lines`);
   $('stats-lines').innerHTML = parts.join('<span class="sep">·</span>');
-  $('stats-trips').innerHTML = `<b>${fmtNum(state.trips.length)}</b> TRIPS ON ${prettyDate(state.date).toUpperCase()}`;
+  $('stats-trips').innerHTML = `<b>${fmtNum(state.trips.length)}</b> trips on ${prettyDate(state.date)}`;
 }
 
 function renderRealtimeStatus() {
@@ -747,11 +744,11 @@ function renderRealtimeStatus() {
   let text, cls;
   if (rt.status === 'ok' && ago !== null && ago < 180) {
     const n = state.trips.filter((t) => t.rt).length;
-    text = `● LIVE DATA<span class="rt-more"> · ${fmtNum(n)} TRIPS</span> · ${ago}S AGO`; cls = 'ok';
-  } else if (rt.status === 'no-key') { text = 'SCHEDULED TIMETABLE'; cls = 'off'; }
-  else if (rt.status === 'error') { text = 'REAL-TIME ERROR'; cls = 'err'; el.title = rt.error || ''; }
-  else if (rt.status === 'unreachable') { text = 'REAL-TIME UNAVAILABLE'; cls = 'err'; }
-  else { text = 'CONNECTING…'; cls = 'off'; }
+    text = `● Live<span class="rt-more"> · ${fmtNum(n)} ${n === 1 ? "trip" : "trips"}</span> · ${ago} s<span class="rt-more"> ago</span>`; cls = 'ok';
+  } else if (rt.status === 'no-key') { text = 'Timetable only'; cls = 'off'; }
+  else if (rt.status === 'error') { text = 'Real-time error'; cls = 'err'; el.title = rt.error || ''; }
+  else if (rt.status === 'unreachable') { text = 'Real-time unavailable'; cls = 'err'; }
+  else { text = 'Connecting…'; cls = 'off'; }
   el.innerHTML = text; // only fixed words and numbers
   el.className = 'rt ' + cls;
   $('pt-live').classList.toggle('off', cls !== 'ok');
@@ -828,7 +825,7 @@ function renderAlerts() {
     const meta = kind === 'cancel'
       ? `Scheduled ${fmtHM(at)} · ${esc(route.a)}`
       : `${esc(CATS[tr.cat].one)} · next stop ${esc(shortName(state.stops[tr.s[(locate(tr, state.t) || { next: 0 }).next]][2]))}`;
-    const tag = kind === 'cancel' ? '<span class="tag cancel">CANCELLED</span>' : `<span class="tag late">+${Math.round(d / 60)} min</span>`;
+    const tag = kind === 'cancel' ? '<span class="tag cancel">Cancelled</span>' : `<span class="tag late">+${Math.round(d / 60)} min</span>`;
     return `<li data-i="${i}"><span class="badge" style="background:${route.col}">${esc(route.n)}</span>
       <div class="txt"><div class="to">${to}</div><div class="meta">${meta}</div></div>${tag}</li>`;
   }).join('');
@@ -843,11 +840,11 @@ function showAlerts(on) {
 
 // ---------------------------------------------------------------- UI: vehicle panel
 function realtimeTag(tr) {
-  if (tr.rt === 'cancel') return '<span class="delay cancel">CANCELLED</span>';
+  if (tr.rt === 'cancel') return '<span class="delay cancel">Cancelled</span>';
   if (tr.rt !== 'live') return '<span class="delay none">Scheduled</span>';
   const d = Math.round(delayAt(tr, state.t) / 60);
-  if (d === 0) return '<span class="delay ok">ON TIME</span>';
-  return `<span class="delay ${d > 0 ? 'late' : 'early'}">${d > 0 ? `+${d} MIN` : `${d} MIN`}</span>`;
+  if (d === 0) return '<span class="delay ok">On time</span>';
+  return `<span class="delay ${d > 0 ? 'late' : 'early'}">${d > 0 ? `+${d} min` : `${d} min`}</span>`;
 }
 
 function tooltipDelay(tr) {
@@ -879,7 +876,7 @@ function renderInfo() {
       <span class="to">${esc(shortName(tr.h || state.stops[tr.s[tr.s.length - 1]][2]))}</span></div>
     <div class="info-sub">${esc(CATS[tr.cat].one)} · ${esc(route.a)}${tr.n ? ` · trip ${esc(tr.n)}` : ''}</div>
     <div class="info-status"><span>${status}</span>${realtimeTag(tr)}</div>
-    ${loc ? `<button class="follow ${state.follow ? 'on' : ''}" id="follow-btn">${state.follow ? 'FOLLOWING · ESC TO STOP' : 'FOLLOW THIS VEHICLE'}</button>` : ''}
+    ${loc ? `<button class="follow ${state.follow ? 'on' : ''}" id="follow-btn">${state.follow ? 'Riding along · Esc to stop' : 'Ride along'}</button>` : ''}
     <ul class="stoplist">${items}</ul>`;
   const fb = $('follow-btn');
   if (fb) fb.onclick = () => { state.follow = !state.follow; renderInfo(); };
@@ -911,7 +908,7 @@ function serviceBase() { return state.t < 14400 ? addDays(state.date, -1) : stat
 
 function setSpeed(s) {
   state.speed = s;
-  document.querySelectorAll('#speeds button').forEach((b) => b.classList.toggle('on', +b.dataset.speed === s));
+  $('speed').value = String(s);
 }
 
 function setPlaying(on) {
@@ -936,11 +933,12 @@ async function jumpTo(date, t) {
   computeAlerts();
 }
 
+let shownClock = '';
 function renderClock() {
-  const hm = fmtHM(state.t);
-  if ($('clock').textContent !== hm) {
-    $('clock').textContent = hm;
-    $('period').textContent = periodOf(state.t);
+  const hms = fmtTime(state.t);
+  if (hms !== shownClock) {
+    shownClock = hms;
+    $('clock').innerHTML = `${hms.slice(0, 5)}<span class="sec">${hms.slice(5)}</span>`; // digits only
     $('date').textContent = prettyDate(state.date);
   }
   if (sliderBase === null) {
@@ -976,16 +974,12 @@ function pickSearch(idx) {
   map.flyTo({ center: s.coord, zoom: 17, duration: 1600 });
   toggleSearch(false);
 }
-let searchHidPanel = false;
 function setPanel(open, save = true) {
   $('panel').classList.toggle('closed', !open);
   $('btn-panel').classList.toggle('on', open);
   if (save) { settings.panelOpen = open; saveSettings(); }
 }
-function toggleSearch(on, { restore = true } = {}) {
-  // the search box sits where the layer panel starts: hide the panel meanwhile, bring it back after
-  if (on && !$('panel').classList.contains('closed')) { searchHidPanel = true; setPanel(false, false); }
-  else if (!on && searchHidPanel) { searchHidPanel = false; if (restore) setPanel(true, false); }
+function toggleSearch(on) {
   $('search').classList.toggle('hidden', !on);
   $('btn-search').classList.toggle('on', on);
   if (on) { $('search-input').value = ''; $('search-results').innerHTML = ''; $('search-input').focus(); }
@@ -1034,27 +1028,21 @@ function wireUi() {
   $('btn-panel').onclick = () => {
     const open = $('panel').classList.contains('closed');
     if (open) {
-      toggleSearch(false, { restore: false });
+      toggleSearch(false);
       if (isPhone()) { showAlerts(false); if (state.selected >= 0) select(-1); } // no room for two panels
       track('panel');
     }
     setPanel(open);
   };
   setPanel(settings.panelOpen, false);
-  // Panels fill the space between the toolbar and the time bar. Measured, because the time bar's
-  // height varies and 100vh on phones includes the area behind the browser's own toolbars.
+  $('panel-close').onclick = () => setPanel(false);
+  // Panels start below the top bar, whose height changes when it wraps onto two rows on phones.
   const layout = () => {
-    const root = document.documentElement;
-    const tools = document.querySelector('#topleft .toolbar').getBoundingClientRect();
-    const tbTop = $('timebar').getBoundingClientRect().top;
-    root.style.setProperty('--tools-top', `${Math.round(tools.top)}px`);
-    root.style.setProperty('--top-space', `${Math.round(tools.bottom + 10)}px`);
-    root.style.setProperty('--tb-space', `${Math.round(root.clientHeight - tbTop + 10)}px`);
-    root.style.setProperty('--avail', `${Math.max(120, Math.round(tbTop - 10 - tools.bottom - 10))}px`);
+    document.documentElement.style.setProperty('--top-space', `${Math.round($('topbar').getBoundingClientRect().bottom)}px`);
   };
   layout();
   window.addEventListener('resize', layout);
-  new ResizeObserver(layout).observe($('timebar'));
+  new ResizeObserver(layout).observe($('topbar'));
   $('btn-search').onclick = () => toggleSearch($('search').classList.contains('hidden'));
   $('btn-home').onclick = () => map.flyTo({ ...START_VIEW, pitch: $('l-2d').checked ? 0 : START_VIEW.pitch, bearing: $('l-2d').checked ? 0 : START_VIEW.bearing, duration: 1800 });
   $('btn-alerts').onclick = () => {
@@ -1146,9 +1134,12 @@ function wireUi() {
     await jumpTo(state.days.includes(now.date) ? now.date : state.date, now.sec);
     setLive(true);
   };
-  document.querySelectorAll('#speeds button').forEach((b) => {
-    b.onclick = () => { if (+b.dataset.speed !== 1) setLive(false); setSpeed(+b.dataset.speed); if (!state.playing) setPlaying(true); };
-  });
+  $('speed').onchange = (e) => {
+    const s = +e.target.value;
+    if (s !== 1) setLive(false);
+    setSpeed(s);
+    if (!state.playing) setPlaying(true);
+  };
   const slider = $('slider');
   slider.addEventListener('pointerdown', () => { sliderBase = serviceBase(); });
   slider.addEventListener('focus', () => { if (sliderBase === null) sliderBase = serviceBase(); });
@@ -1262,11 +1253,11 @@ async function main() {
     state.t = now.sec;
     if (day !== now.date) {
       state.live = false;
-      $('rt-status').textContent = 'NO TIMETABLE FOR TODAY';
+      $('rt-status').textContent = 'No timetable for today';
     }
   } catch (e) {
     $('loading-text').textContent = `Could not load data (${e.message}). Run "npm run setup" first.`;
-    document.querySelector('#loading .spinner')?.remove();
+    document.querySelector('#loading .progress')?.remove();
     return;
   }
 
@@ -1278,6 +1269,7 @@ async function main() {
     const { rise, set } = sunTimes(state.date);
     state.theme = state.t > rise - 900 && state.t < set + 900 ? 'day' : 'night';
   }
+  document.documentElement.dataset.ui = state.theme;
 
   map = new maplibregl.Map({
     container: 'map', style: STYLES[state.theme], ...START_VIEW, maxPitch: 80,

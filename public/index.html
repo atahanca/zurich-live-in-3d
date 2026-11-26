@@ -7,7 +7,7 @@
 **** Atahan Caramanolis, with two Claude Code agents
 **** https://github.com/atahanca
 -->
-<html lang="en">
+<html lang="en" data-ui="day">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -24,141 +24,153 @@
 
   <div id="loading">
     <div class="brand big"><span class="word">ZÜRICH</span><span class="accent">3D</span></div>
-    <div class="spinner"></div>
+    <div class="progress" aria-hidden="true"><span></span></div>
     <div id="loading-text">Loading timetable…</div>
   </div>
 
-  <!-- top-left: brand + toolbar -->
-  <div id="topleft">
-    <div class="brand glass" id="brand" title="Zurich 3D: public transport, live">
-      <span class="word">ZÜRICH</span><span class="accent">3D</span>
+  <!-- top bar: brand, time, status, tools; the time scrubber runs underneath -->
+  <header id="topbar">
+    <div class="bar">
+      <a class="brand" id="brand" href="./" title="Zurich 3D: public transport, live"><span class="word">ZÜRICH</span><span class="accent">3D</span></a>
+
+      <div class="time">
+        <button class="sq" id="play" title="Play / pause (Space)" aria-label="Play or pause">
+          <svg class="i-pause" viewBox="0 0 24 24"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>
+          <svg class="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <div class="clock">
+          <div class="clock-time" id="clock">--:--</div>
+          <div class="clock-date" id="date">—</div>
+        </div>
+        <button class="now" id="live" title="Back to the current time">Now</button>
+        <label class="speed" title="Simulation speed">
+          <span>Speed</span>
+          <select id="speed">
+            <option value="1">1×</option>
+            <option value="15">15×</option>
+            <option value="60">60×</option>
+            <option value="240">240×</option>
+            <option value="600">600×</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="status">
+        <div id="rt-status" class="rt off">Connecting…</div>
+        <div class="moving"><b id="in-service">0</b><span> vehicles moving</span></div>
+      </div>
+
+      <div class="wx" id="wx" hidden></div>
+
+      <nav class="tools">
+        <button class="sq" id="btn-search" title="Find a stop (/)" aria-label="Find a stop">
+          <svg viewBox="0 0 24 24"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.8 4.8-1.4 1.4-4.8-4.8A7.5 7.5 0 1 1 10.5 3Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Z"/></svg>
+        </button>
+        <button class="sq" id="btn-home" title="Back to the city centre" aria-label="Back to the city centre">
+          <svg viewBox="0 0 24 24"><path d="M12 2a1 1 0 0 1 1 1v1.07A8 8 0 0 1 19.93 11H21a1 1 0 1 1 0 2h-1.07A8 8 0 0 1 13 19.93V21a1 1 0 1 1-2 0v-1.07A8 8 0 0 1 4.07 13H3a1 1 0 1 1 0-2h1.07A8 8 0 0 1 11 4.07V3a1 1 0 0 1 1-1Zm0 4a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm0 3a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z"/></svg>
+        </button>
+        <button class="sq" id="btn-alerts" title="Disruptions" aria-label="Disruptions">
+          <svg viewBox="0 0 24 24"><path d="M12 2.5 22.5 21h-21L12 2.5Zm-1 6.5v6h2V9h-2Zm0 8v2h2v-2h-2Z"/></svg>
+          <span class="count" id="alert-count" hidden>0</span>
+        </button>
+        <button class="sq labelled" id="btn-panel" title="Map and layers">
+          <svg viewBox="0 0 24 24"><path d="M3 5h18v2H3V5Zm0 6h18v2H3v-2Zm0 6h18v2H3v-2Z"/></svg>
+          <span>Layers</span>
+        </button>
+      </nav>
     </div>
-    <div class="glass wx" id="wx" hidden></div>
-    <div class="toolbar">
-      <button class="tool glass on" id="btn-panel" title="Layers & settings">
-        <svg viewBox="0 0 24 24"><path d="M12 3 2 8l10 5 10-5-10-5Zm-8.6 9.2L12 16.5l8.6-4.3L22 13l-10 5-10-5 1.4-.8Zm0 4L12 20.5l8.6-4.3L22 17l-10 5-10-5 1.4-.8Z"/></svg>
-        <span>LAYERS</span>
-      </button>
-      <button class="tool glass icon" id="btn-search" title="Search a stop">
-        <svg viewBox="0 0 24 24"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.8 4.8-1.4 1.4-4.8-4.8A7.5 7.5 0 1 1 10.5 3Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Z"/></svg>
-      </button>
-      <button class="tool glass icon" id="btn-home" title="Back to the city centre">
-        <svg viewBox="0 0 24 24"><path d="M12 2a1 1 0 0 1 1 1v1.07A8 8 0 0 1 19.93 11H21a1 1 0 1 1 0 2h-1.07A8 8 0 0 1 13 19.93V21a1 1 0 1 1-2 0v-1.07A8 8 0 0 1 4.07 13H3a1 1 0 1 1 0-2h1.07A8 8 0 0 1 11 4.07V3a1 1 0 0 1 1-1Zm0 4a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm0 3a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z"/></svg>
-      </button>
-      <button class="tool glass icon" id="btn-alerts" title="Disruptions">
-        <svg viewBox="0 0 24 24"><path d="M12 2a6 6 0 0 1 6 6v3.6l1.7 3.4A1 1 0 0 1 18.8 16H5.2a1 1 0 0 1-.9-1.4L6 11.6V8a6 6 0 0 1 6-6Zm-2.8 16h5.6a2.8 2.8 0 0 1-5.6 0Z"/></svg>
-        <span class="count" id="alert-count" hidden>0</span>
-      </button>
+
+    <div class="scrubber">
+      <input type="range" id="slider" min="14400" max="100799" step="1" aria-label="Time of day" />
+      <div class="ticks" aria-hidden="true"><span>04</span><span>07</span><span>10</span><span>13</span><span>16</span><span>19</span><span>22</span><span>01</span><span>04</span></div>
     </div>
-    <div class="search glass hidden" id="search">
-      <input id="search-input" type="search" placeholder="Search a stop…" autocomplete="off" spellcheck="false" />
-      <ul id="search-results"></ul>
-    </div>
+  </header>
+
+  <div class="card search hidden" id="search">
+    <input id="search-input" type="search" placeholder="Find a stop…" autocomplete="off" spellcheck="false" />
+    <ul id="search-results"></ul>
   </div>
 
-  <!-- left: layer panel -->
-  <aside class="glass panel" id="panel">
-    <div class="group-title">Graphics quality</div>
-    <div class="seg" id="quality">
-      <button data-q="low">Reduced</button>
-      <button data-q="std" class="on">Standard</button>
-      <button data-q="high">High</button>
+  <!-- right: map & layers drawer -->
+  <aside class="drawer" id="panel">
+    <div class="drawer-head">
+      <h2>Map &amp; layers</h2>
+      <button class="close" id="panel-close" aria-label="Close">×</button>
     </div>
-    <label class="row"><span>2D view (top-down)</span><input type="checkbox" class="switch" id="l-2d" /></label>
 
-    <div class="section-title">Map</div>
-    <div class="row-label">Basemap</div>
-    <div class="seg" id="basemap">
-      <button data-b="none">None</button>
-      <button data-b="default" class="on">Default</button>
-      <button data-b="satellite">Satellite</button>
-    </div>
-    <label class="row slider-row"><span>Basemap opacity</span><input type="range" id="l-opacity" min="0" max="100" value="100" /></label>
-    <label class="row"><span>Day / night cycle</span><input type="checkbox" class="switch" id="l-cycle" checked /></label>
-    <div class="row sub-row" id="theme-row">
-      <span>Map style</span>
-      <div class="seg small" id="theme"><button data-theme="day" class="on">Day</button><button data-theme="night">Night</button></div>
-    </div>
-    <details class="layer" open>
-      <summary><span>Buildings</span><input type="checkbox" class="switch" id="l-buildings" checked /></summary>
-      <label class="row slider-row"><span>Opacity</span><input type="range" id="l-bopacity" min="20" max="100" value="85" /></label>
-    </details>
-    <label class="row"><span>Route network</span><input type="checkbox" class="switch" id="l-network" checked /></label>
-    <label class="row"><span>Stops</span><input type="checkbox" class="switch" id="l-stops" checked /></label>
-
-    <div class="section-title">Data layers</div>
-    <details class="layer" open>
-      <summary><span>Public transport <em class="live-dot" id="pt-live" title="Real-time">LIVE</em></span><input type="checkbox" class="switch" id="l-pt" checked /></summary>
+    <section>
+      <h3>Vehicles <em class="live-dot" id="pt-live" title="Real-time data">LIVE</em></h3>
+      <label class="row"><span>Show vehicles</span><input type="checkbox" class="switch" id="l-pt" checked /></label>
       <div id="modes"></div>
-      <label class="row"><span>Line labels</span><input type="checkbox" class="switch" id="l-labels" checked /></label>
-      <label class="row"><span>Delays on labels</span><input type="checkbox" class="switch" id="l-delays" checked /></label>
-      <label class="row"><span>Light trails</span><input type="checkbox" class="switch" id="l-trails" /></label>
-    </details>
-    <div class="row soon"><span>Road traffic</span><em>soon</em></div>
-    <label class="row"><span>Weather (rain, snow, clouds)</span><input type="checkbox" class="switch" id="l-weather" checked /></label>
-    <div class="row soon"><span>Events</span><em>soon</em></div>
+      <label class="row"><span>Line numbers</span><input type="checkbox" class="switch" id="l-labels" checked /></label>
+      <label class="row"><span>Delays next to the line number</span><input type="checkbox" class="switch" id="l-delays" checked /></label>
+      <label class="row"><span>Motion trails</span><input type="checkbox" class="switch" id="l-trails" /></label>
+    </section>
+
+    <section>
+      <h3>Map</h3>
+      <div class="row-label">Background</div>
+      <div class="seg" id="basemap">
+        <button data-b="default" class="on">Streets</button>
+        <button data-b="satellite">Aerial</button>
+        <button data-b="none">Blank</button>
+      </div>
+      <label class="row slider-row"><span>Background strength</span><input type="range" id="l-opacity" min="0" max="100" value="100" /></label>
+      <label class="row"><span>Follow the sun (day and night)</span><input type="checkbox" class="switch" id="l-cycle" checked /></label>
+      <div class="row sub-row" id="theme-row">
+        <span>Look</span>
+        <div class="seg small" id="theme"><button data-theme="day" class="on">Day</button><button data-theme="night">Night</button></div>
+      </div>
+      <label class="row"><span>Flat view, no tilt</span><input type="checkbox" class="switch" id="l-2d" /></label>
+    </section>
+
+    <section>
+      <h3>On the map</h3>
+      <label class="row"><span>3D buildings</span><input type="checkbox" class="switch" id="l-buildings" checked /></label>
+      <label class="row slider-row sub-row"><span>Building opacity</span><input type="range" id="l-bopacity" min="20" max="100" value="85" /></label>
+      <label class="row"><span>Line network</span><input type="checkbox" class="switch" id="l-network" checked /></label>
+      <label class="row"><span>Stops</span><input type="checkbox" class="switch" id="l-stops" checked /></label>
+      <label class="row"><span>Weather effects</span><input type="checkbox" class="switch" id="l-weather" checked /></label>
+      <p class="soon">Coming later: road traffic and events.</p>
+    </section>
+
+    <section>
+      <h3>Rendering</h3>
+      <div class="seg" id="quality">
+        <button data-q="low">Eco</button>
+        <button data-q="std" class="on">Balanced</button>
+        <button data-q="high">Sharp</button>
+      </div>
+    </section>
+
+    <section class="drawer-foot">
+      <div id="stats">
+        <div id="stats-lines"></div>
+        <div id="stats-trips"></div>
+      </div>
+      <p class="hint">Drag to move · right-drag or Ctrl-drag to tilt and turn · scroll to zoom · click a vehicle to ride along</p>
+    </section>
   </aside>
 
-  <!-- top-right: statistics -->
-  <div class="glass" id="stats">
-    <div id="stats-lines"></div>
-    <div id="stats-trips"></div>
-    <div id="rt-status" class="rt off">CONNECTING…</div>
-  </div>
-
-  <!-- right: disruptions -->
-  <aside class="glass side" id="alerts" hidden>
+  <!-- left: disruptions -->
+  <aside class="card side" id="alerts" hidden>
     <div class="side-head">
       <h2>Disruptions</h2>
       <button class="close" id="alerts-close" aria-label="Close">×</button>
     </div>
     <div class="chips" id="alert-filter">
       <button data-f="all" class="on">All <b id="af-all">0</b></button>
-      <button data-f="delay">Delays <b id="af-delay">0</b></button>
+      <button data-f="delay">Late <b id="af-delay">0</b></button>
       <button data-f="cancel">Cancelled <b id="af-cancel">0</b></button>
     </div>
     <ul class="alert-list" id="alert-list"></ul>
   </aside>
 
-  <!-- right: selected vehicle -->
-  <aside class="glass side hidden" id="info">
+  <!-- left: selected vehicle -->
+  <aside class="card side hidden" id="info">
     <button class="close" id="info-close" aria-label="Close">×</button>
     <div id="info-body"></div>
   </aside>
-
-  <!-- bottom: time bar -->
-  <footer class="glass" id="timebar">
-    <div class="tb-controls">
-      <button class="round" id="play" title="Play / pause (Space)">
-        <svg class="i-pause" viewBox="0 0 24 24"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>
-        <svg class="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-      </button>
-      <button class="round ghost" id="live" title="Jump to now">
-        <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm0 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16Zm1 3v4.6l3.2 3.2-1.4 1.4L11 12.4V7h2Z"/></svg>
-      </button>
-    </div>
-    <div class="tb-clock">
-      <div class="tb-date" id="date">—</div>
-      <div class="tb-time" id="clock">--:--</div>
-      <div class="tb-period" id="period">—</div>
-    </div>
-    <div class="tb-timeline">
-      <input type="range" id="slider" min="14400" max="100799" step="1" />
-      <div class="ticks"><span>04:00</span><span>08:00</span><span>12:00</span><span>16:00</span><span>20:00</span><span>24:00</span><span>04:00</span></div>
-    </div>
-    <div class="tb-speeds" id="speeds">
-      <button data-speed="1" class="on">×1</button>
-      <button data-speed="30">×30</button>
-      <button data-speed="60">×60</button>
-      <button data-speed="180">×180</button>
-      <button data-speed="480">×480</button>
-    </div>
-    <div class="tb-count">
-      <div class="big" id="in-service">0</div>
-      <div class="lbl">IN SERVICE</div>
-    </div>
-    <div class="tb-hint">Drag: pan · Right-drag / Ctrl-drag: rotate &amp; tilt · Wheel: zoom · Click a vehicle to follow it</div>
-  </footer>
 
   <div id="credits">
     Unofficial project · Inspired by <a href="https://geneva3d.ch" target="_blank" rel="noopener">Genève 3D</a> by Arnaud Ricci ·
