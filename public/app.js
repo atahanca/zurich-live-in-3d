@@ -17,6 +17,9 @@ try {
 } catch { /* offline or old server: start the map as usual */ }
 
 const START_VIEW = { center: [8.5402, 47.3779], zoom: 14.6, pitch: 62, bearing: -28 };
+// The area the timetable covers (scripts/config.js BBOX); outside it the map stays on the city centre.
+const COVERAGE = [8.44, 47.315, 8.63, 47.44];
+const LOCATED_ZOOM = 15.6;
 const STYLES = {
   day: 'https://tiles.openfreemap.org/styles/liberty',
   night: 'https://tiles.openfreemap.org/styles/dark',
@@ -1291,6 +1294,38 @@ async function tick(now) {
   requestAnimationFrame(tick);
 }
 
+// Open the map where the visitor is, if they allow it and are inside the area we cover.
+// The position stays in the browser: it is never sent to the server or anyone else.
+function locateOnLanding() {
+  if (!navigator.geolocation) return;
+  let moved = false; // the visitor already panned or zoomed: don't yank the map away
+  const markMoved = (e) => { if (e.originalEvent) moved = true; };
+  map.on('dragstart', markMoved); map.on('zoomstart', markMoved); map.on('rotatestart', markMoved);
+  const started = performance.now();
+  let dot = null;
+  const show = ({ coords }) => {
+    const at = [coords.longitude, coords.latitude];
+    const [w, s, e, n] = COVERAGE;
+    if (at[0] < w || at[0] > e || at[1] < s || at[1] > n) return;
+    if (!dot) {
+      const el = document.createElement('div');
+      el.className = 'me-dot';
+      el.title = 'You are here';
+      dot = new maplibregl.Marker({ element: el }).setLngLat(at).addTo(map);
+      if (!moved && state.selected < 0) {
+        const view = { center: at, zoom: Math.max(map.getZoom(), LOCATED_ZOOM) };
+        // a quick answer jumps straight there; a slow one glides so the switch isn't jarring
+        if (performance.now() - started < 1500) map.jumpTo(view); else map.flyTo({ ...view, duration: 1600 });
+      }
+    } else dot.setLngLat(at);
+  };
+  navigator.geolocation.getCurrentPosition((p) => {
+    show(p);
+    if (dot) navigator.geolocation.watchPosition(show, () => {}, { maximumAge: 30000 });
+  }, () => { /* refused or unavailable: stay on the city centre */ },
+  { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 });
+}
+
 async function main() {
   try {
     const idx = await loadJson('data/index.json');
@@ -1332,7 +1367,8 @@ async function main() {
   map.on('zoom', () => { const was = lighting.shadowColor[3] > 0.01; applyShadow(); if (was !== lighting.shadowColor[3] > 0.01) state.dirty = true; });
   map.on('move', () => { if (performance.now() - lastVehicles > 100) state.dirty = true; });
   map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
-  overlay = new deck.MapboxOverlay({
+  locateOnLanding();
+  overlay =new deck.MapboxOverlay({
     interleaved: true,
     layers: [],
     effects: [lighting],

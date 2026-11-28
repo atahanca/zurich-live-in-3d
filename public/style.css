@@ -356,3 +356,15 @@ html[data-ui="night"] .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filt
   .speed { display: none; }
   .wx { display: none !important; }
 }
+
+/* "You are here" dot */
+.me-dot {
+  width: 16px; height: 16px; border-radius: 50%; background: var(--zh-blue);
+  border: 3px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.25), 0 1px 4px rgba(0,0,0,.4);
+}
+.me-dot::after {
+  content: ''; position: absolute; inset: -9px; border-radius: 50%;
+  background: var(--zh-blue); opacity: .25; animation: me-pulse 2.4s ease-out infinite;
+}
+@keyframes me-pulse { from { transform: scale(.5); opacity: .45; } to { transform: scale(1.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .me-dot::after { animation: none; } }

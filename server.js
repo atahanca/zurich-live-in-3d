@@ -97,8 +97,8 @@ function securityHeaders(secure) {
     'X-Frame-Options': 'DENY',
     // never tell the map tile providers which page a visitor was on
     'Referrer-Policy': 'same-origin',
-    // switch off browser features the site never uses (incl. Topics ad profiling)
-    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()',
+    // switch off browser features the site never uses (incl. Topics ad profiling); location only for this site's own page
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(self), payment=(), usb=(), browsing-topics=()',
     'X-Permitted-Cross-Domain-Policies': 'none',
     'Origin-Agent-Cluster': '?1',
     'Cross-Origin-Opener-Policy': 'same-origin',
