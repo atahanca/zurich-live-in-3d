@@ -119,7 +119,7 @@ function sunTimes(ymd) {
 
 // ---------------------------------------------------------------- state
 const defaults = {
-  quality: 'std', basemap: 'default', opacity: 100, cycle: true, theme: 'day', buildingOpacity: 85,
+  quality: 'high', basemap: 'default', opacity: 100, cycle: true, theme: 'day', buildingOpacity: 85,
   show: { network: true, stops: true, labels: true, delays: true, trails: false, buildings: true, pt: true, weather: true },
   hidden: [], panelOpen: window.innerWidth > 760, // on phones the map comes first
 };
