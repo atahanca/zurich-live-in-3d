@@ -4,6 +4,7 @@ import { MODELS, MESHES, modelFor, sectionsFor, liveryTexture } from './vehicles
 import { lights, initBuildings, buildingsLayer } from './buildings.js';
 import { swiss } from './swissbuildings.js';
 import { track } from './track.js';
+import { airport, AIRPORT_LAYERS } from './airport.js';
 import { sunPosition, nightOf, litShare, skyFor, describe, ICONS, weatherAt, Precipitation, precipIntensity } from './atmosphere.js';
 
 // Maintenance mode: some hosts serve this page as a plain file, past the server's maintenance gate.
@@ -37,7 +38,7 @@ const QUALITY = {
   std: { ratio: () => Math.min(window.devicePixelRatio || 1, 1.25), interval: 33 },
   high: { ratio: () => Math.min(window.devicePixelRatio || 1, 2), interval: 16 },
 };
-const OWN_LAYERS = new Set(['network', 'stops-dot', 'stops-label', 'sat', 'fade', 'street-glow', 'street-lamps']);
+const OWN_LAYERS = new Set(['network', 'stops-dot', 'stops-label', 'sat', 'fade', 'street-glow', 'street-lamps', ...AIRPORT_LAYERS]);
 
 // Night palette for OpenFreeMap's "dark" style: near-black city, deep blue water, sodium-lit streets.
 const NIGHT_PAINT = {
@@ -504,6 +505,7 @@ function addNativeLayers() {
     }, 'network');
   }
   lastSky = '';
+  airport.add(map, night, 'network'); // runway markings, and airfield lighting at night
   updateAtmosphere(true);
   applyLayerVisibility();
   applyBasemap();
@@ -528,6 +530,7 @@ function applyBasemap() {
   }
   setVis('sat', mode === 'satellite');
   $('credit-swisstopo').hidden = mode !== 'satellite';
+  airport.setMarkings(map, mode === 'default');
   if (map.getLayer('fade')) map.setPaintProperty('fade', 'background-opacity', mode === 'none' ? 0 : 1 - settings.opacity / 100);
 }
 
@@ -1291,6 +1294,7 @@ async function tick(now) {
   if (now - lastAlerts > 5000) { lastAlerts = now; computeAlerts(); }
   if (now - lastCycle > 1000) { lastCycle = now; updateCycle(); updateAtmosphere(); }
   precip?.frame(now);
+  airport.frame(map, now);
   requestAnimationFrame(tick);
 }
 

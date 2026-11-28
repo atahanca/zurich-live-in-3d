@@ -6,6 +6,7 @@ A 3D map of Zurich that shows every tram, bus, train, boat and funicular moving 
 - **Real-time delays and cancellations** from the official Swiss GTFS-RT feed
 - **Realistic vehicles**: articulated trams (Flexity, Cobra, Tram 2000), buses and trolleybuses, double-deck trains, each in its operator's livery, bending through curves along the real tracks and roads
 - **3D city** with buildings, day and night mode, and lit windows at night
+- **Zurich Airport** with runway and taxiway markings by day and full airfield lighting at night (runway, approach and taxiway lights, with flashing approach strobes)
 - **Time travel**: pause, speed up to 600×, scrub through the day, or jump back to live
 - **Follow mode**: click any vehicle to see its stops, scheduled times and delay, then ride along with it
 
@@ -136,6 +137,7 @@ The Swiss GTFS has **no route shapes**, so paths are reconstructed from OpenStre
 ### In the browser (`public/app.js`, `public/vehicles.js`, `public/buildings.js`, `public/swissbuildings.js`, `public/atmosphere.js`)
 
 - **Base map:** [MapLibre GL](https://maplibre.org) with [OpenFreeMap](https://openfreemap.org) vector tiles. At night it switches to a dark style with its own palette, a sodium glow along streets and rows of street lamps.
+- **Airport:** runway ends are fixed coordinates taken from the OpenStreetMap runway centrelines; runway lights and markings are generated from them following the usual ICAO layout (simplified). Taxiway and apron lights come straight from the base map's `aeroway` tiles.
 - **Buildings:** deck.gl draws the 3D buildings from the same vector tiles (a small built-in decoder reads only the building layer). A shader extension paints lit windows on the walls at night. Windows are about 2.8 m × 3.2 m storeys, so they stay to scale at every zoom. The share of lit windows follows the time: they come on at dusk, most go off after midnight, and some come back before work.
 - **Real 3D buildings close up:** from zoom 16, swisstopo's [swissBUILDINGS3D](https://www.swisstopo.admin.ch/en/landscape-model-swissbuildings3d-3-0-beta) models (real roof shapes, towers, courtyards) replace the boxes in a box of about 1 km around the map centre (600 m on phones, off at "low" quality). The tiles are fetched straight from swisstopo's 3D Tiles service and decoded in the browser with the bundled Draco decoder. The models sit at their real height above sea level while the map is flat, so each building is lowered until its lowest point touches the ground. They use the same facade shader (windows, night lights, shadows); roofs with a real pitch get tile colours, flat ones gravel, green or membrane.
 - **Sun and sky:** sun altitude and azimuth come from the simulated time. They drive the light direction and colour (warm when the sun is low), the sky and fog colours, and the gradual change from day to night.
